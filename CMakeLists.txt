@@ -55,11 +55,11 @@ find_package(PCL REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  ClassificationElement.msg
+  ClassificationVelocityData.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -76,10 +76,11 @@ find_package(PCL REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  sensor_msgs
+  geometry_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -96,10 +97,11 @@ find_package(PCL REQUIRED)
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+# configファイルを追加
+generate_dynamic_reconfigure_options(
+  cfg/obstacleAvoidance.cfg
+  # cfg/DynReconf2.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -161,6 +163,20 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
+add_executable(${PROJECT_NAME}_avoid # obstacle_avoidance
+  src/obstacle_avoidance/constructor.cpp
+  src/obstacle_avoidance/methods.cpp
+  src/obstacle_avoidance/debug_main.cpp
+  src/obstacle_avoidance/debug_methods.cpp
+  src/obstacle_avoidance/property.cpp
+)
+
+add_dependencies(${PROJECT_NAME}_avoid ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME}_avoid ${PROJECT_NAME}_gencfg)
+
+target_link_libraries(${PROJECT_NAME}_avoid ${catkin_LIBRARIES}) # obstacle_avoidance
+
+
 #############
 ## Install ##
 #############
@@ -208,3 +224,5 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_definitions(-std=c++11)
