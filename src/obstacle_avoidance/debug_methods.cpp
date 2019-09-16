@@ -3,17 +3,49 @@
 //デバッグ方法選択メソッド
 void obstacleAvoidance::debug(){
     switch(debugType){
-        case 1: debugMethod1();break;
+        case 1: showCrossPoints();break;
         default: ;
     }
 }
 
-//計測した速度データをポイントクラウドで可視化
-// 1,2,3,,,秒後の点群データを表示し、障害物の速度ベクトルを表示
-// rviz上での矢印、速度の文字表示を行いたいが、調べる時間が惜しいため
-// 現在は未実装
-void obstacleAvoidance::debugMethod1(){
-    
-    // デバッグ処理
+// 交差位置をマーカーで表示する
+void obstacleAvoidance::showCrossPoints(){
+    //--sample
+    visualization_msgs::MarkerArray markerArray;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "base_link";
+    marker.header.stamp = clstr.header.stamp;
+    marker.ns = "my_namespace";
+    // marker.lifetime = ros::Duration(0.3);
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+    markerArray.markers.resize((int)clstr.data.size() * 2);
+    int count = 0;
+    for(int k=0; k<clstr.data.size(); k++){
+        float obstacleRadius = 1.0;
+        marker.scale.x = obstacleRadius;
+        marker.scale.y = obstacleRadius;
+        marker.scale.z = obstacleRadius;
+        //position
+        //定義済みの交差位置構造体から取得
+	    crossPoint crsPt;//仮
+        //
+        marker.pose.position.x = crsPt.x;
+        marker.pose.position.y = crsPt.y;
+        marker.pose.position.z = 0;
+        marker.color.a = 1.0;
+        marker.color.r = colors[k][0];
+        marker.color.g = colors[k][1];
+        marker.color.b = colors[k][2];
+        marker.type = visualization_msgs::Marker::SPHERE;
 
+        //add Array
+        marker.id = count;
+        markerArray.markers[count++] = marker;
+    }
+    markerArray.markers.resize(count);
+    // ROS_INFO("markerArray.markers.size():%d",(int)markerArray.markers.size());
+    if(markerArray.markers.size()){
+        pubDebMarker.publish( markerArray );
+    }
 }

@@ -1,11 +1,12 @@
 //多重インクルード防止
-#ifndef INCLUDE_VELOCITY_ESTIMATION_CLASS
-#define INCLUDE_VELOCITY_ESTIMATION_CLASS
+#ifndef INCLUDE_OBSTACLE_AVOIDANCE_CLASS
+#define INCLUDE_OBSTACLE_AVOIDANCE_CLASS
 //include haeders
 #include <ros/ros.h>
 #include <ros/callback_queue.h>
-//self msg
+// msg
 #include <local_navigation/ClassificationVelocityData.h>
+#include <nav_msgs/Odometry.h>
 //追加（デバッグ用）
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
@@ -22,12 +23,20 @@ class obstacleAvoidance{
     private:
         //受信データ
 		ros::NodeHandle nhSub1;
-		ros::Subscriber sub;
+		ros::Subscriber sub1,sub2,sub3;
     	local_navigation::ClassificationVelocityData clstr;//速度データ付きのクラスタデータ
+        nav_msgs::Odometry robotOdom,goalOdom;
         //送信データ
 		ros::NodeHandle nhPub;
         ros::Publisher pub;
-
+        //処理データ
+        struct crossPoint{
+            float x;//交差位置x
+            float y;//交差位置y
+            float dis;//交差位置とロボットの距離
+            float t;//交差時の時間
+            int index;//障害物番号
+        };
         //デバッグ用
 		ros::NodeHandle nhDeb;
         ros::Publisher pubDebPcl,pubDebMarker;
@@ -57,14 +66,20 @@ class obstacleAvoidance{
         void manage();
         //--センサーデータ受信
         void cluster_callback(const local_navigation::ClassificationVelocityData::ConstPtr& msg);
+        void robotOdom_callback(const nav_msgs::Odometry::ConstPtr& msg);
+        void goalOdom_callback(const nav_msgs::Odometry::ConstPtr& msg);
         //--rqt_reconfigureからの読み込み
         void configCallback(local_navigation::obstacleAvoidanceConfig &config, uint32_t level);
         //処理
-
+        void crossPointDetect();
+        void labelObstacles();
+        void evaluation(float& angle);
+        void searchProcess();
+        void setCmdVel();
         // データ送信
         void publishData();//データ送信
         //デバッグ用のメソッド
         void debug();
-        void debugMethod1();
+        void showCrossPoints();
 };
 #endif
