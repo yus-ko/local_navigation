@@ -69,7 +69,7 @@ void obstacleAvoidance::searchProcess(){
 	float vel;
 	float angle;
 	//pre process
-	labelObstacle();
+	labelObstacles();
 	//探索処理
 	while(count++ > countThreshold){
 		//探索プロセス

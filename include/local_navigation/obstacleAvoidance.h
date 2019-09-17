@@ -76,6 +76,7 @@ class obstacleAvoidance{
         void evaluation(float& angle);
         void searchProcess();
         void setCmdVel();
+        void setCmdAngle();
         // データ送信
         void publishData();//データ送信
         //デバッグ用のメソッド
