@@ -34,6 +34,12 @@ void obstacleAvoidance::manage(){
 	ROS_INFO("debug");
 	debug();
 }
+// 障害物タイプをラベリング, 
+void obstacleAvoidance::labelObstacles(){
+	std::vector<int> obstacleType;
+	//process
+
+}
 //障害物とx,y座標の交差位置を算出
 // 相対速度を使用する
 void obstacleAvoidance::crossPointDetect(){
@@ -48,12 +54,6 @@ void obstacleAvoidance::crossPointDetect(){
 	std::vector<crossPoint> crsPts;
 	//process
 }
-// 障害物タイプをラベリング
-void obstacleAvoidance::labelObstacles(){
-	std::vector<int> obstacleType;
-	//process
-
-}
 // 評価関数で目標角度を設定
 void obstacleAvoidance::evaluation(float& angle){
 	std::vector<int> obstacleType;
@@ -65,13 +65,29 @@ void obstacleAvoidance::searchProcess(){
 	//探索回数
 	int count = 0;
 	const int countThreshold =10;
+	//探査対象
+	float vel;
+	float angle;
+	//pre process
+	labelObstacle();
+	//探索処理
 	while(count++ > countThreshold){
 		//探索プロセス
-		
+		//探査値の設定
+		setCmdVel();
+		setCmdAngle();
+		//交差位置算出
+		crossPointDetect();
+		//評価
+		evaluation(angle);
 	}
 }
 // セット命令速度(最適探査用)
 void obstacleAvoidance::setCmdVel(){
+	// processs
+}
+// セット目標角度(最適探査用)
+void obstacleAvoidance::setCmdAngle(){
 	// processs
 }
 // データ送信
