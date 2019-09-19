@@ -82,5 +82,6 @@ class obstacleAvoidance{
         //デバッグ用のメソッド
         void debug();
         void showCrossPoints();
+        void showCostMap();
 };
 #endif

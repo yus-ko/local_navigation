@@ -49,3 +49,18 @@ void obstacleAvoidance::showCrossPoints(){
         pubDebMarker.publish( markerArray );
     }
 }
+// クロスコストマップを表示する
+void obstacleAvoidance::showCostMap(){
+    //コストマップ生成のためのパラメータからコストマップをグラデーションで表現する
+    //パラメータを取得
+    //process
+
+    //マップの全てのセルに対する評価値を取得する
+    //process
+
+    //マップを描画する
+    //process
+
+    //publishする
+
+}
