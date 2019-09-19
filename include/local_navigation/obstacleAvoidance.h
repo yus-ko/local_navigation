@@ -6,6 +6,9 @@
 #include <ros/callback_queue.h>
 // msg
 #include <local_navigation/ClassificationVelocityData.h>
+#include <beego_control/beego_encoder.h>
+#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Point.h>
 #include <nav_msgs/Odometry.h>
 //追加（デバッグ用）
 #include <cv_bridge/cv_bridge.h>
@@ -18,6 +21,7 @@
 // rqt_reconfige
 #include <dynamic_reconfigure/server.h>
 #include <local_navigation/obstacleAvoidanceConfig.h>
+#include <local_navigation/struct.h>
 //クラスの定義
 class obstacleAvoidance{
     private:
@@ -26,17 +30,12 @@ class obstacleAvoidance{
 		ros::Subscriber sub1,sub2,sub3;
     	local_navigation::ClassificationVelocityData clstr;//速度データ付きのクラスタデータ
         nav_msgs::Odometry robotOdom,goalOdom;
+        beego_control::beego_encoder robotEncoder;
         //送信データ
 		ros::NodeHandle nhPub;
         ros::Publisher pub;
-        //処理データ
-        struct crossPoint{
-            float x;//交差位置x
-            float y;//交差位置y
-            float dis;//交差位置とロボットの距離
-            float t;//交差時の時間
-            int index;//障害物番号
-        };
+        //ロボットデータ
+        float d;
         //デバッグ用
 		ros::NodeHandle nhDeb;
         ros::Publisher pubDebPcl,pubDebMarker;
@@ -67,11 +66,13 @@ class obstacleAvoidance{
         //--センサーデータ受信
         void cluster_callback(const local_navigation::ClassificationVelocityData::ConstPtr& msg);
         void robotOdom_callback(const nav_msgs::Odometry::ConstPtr& msg);
+        void robotEncoder_callback(const beego_control::beego_encoder::ConstPtr& msg);
         void goalOdom_callback(const nav_msgs::Odometry::ConstPtr& msg);
         //--rqt_reconfigureからの読み込み
         void configCallback(local_navigation::obstacleAvoidanceConfig &config, uint32_t level);
         //処理
-        void crossPointDetect();
+        crossPoint getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cmd_vel, float& cmd_angle);
+        void crossPointsDetect();
         void labelObstacles();
         void evaluation(float& angle);
         void searchProcess();

@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   pcl_ros
   dynamic_reconfigure
+  beego_control
+  
 )
 find_package(OpenCV REQUIRED)
 #find_package(pcl_ros REQUIRED)

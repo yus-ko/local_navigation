@@ -1,6 +1,7 @@
 ﻿#include<local_navigation/obstacleAvoidance.h>
 
 obstacleAvoidance::obstacleAvoidance()
+	:d(0.3145)
 {
 	//ROS_INFO("subscriber define");
 	//subscriber
