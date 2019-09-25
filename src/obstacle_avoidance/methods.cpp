@@ -48,10 +48,10 @@ void obstacleAvoidance::labelObstacles(){
 	//process
 
 }
-//障害物とx,y座標の交差位置を算出
+//障害物１つに対するx,y座標の交差位置を算出(交差位置を返す)
 // 相対速度を使用する
 crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cmd_vel, float& cmd_angle){
-	//
+	// 
 	// struct crossPoint{
 	// 	float x;//交差位置x
 	// 	float y;//交差位置y
@@ -85,8 +85,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	float Vcx = Vox - (Vrx_c - Vrx);
 	float Vcy = Voy - (Vry_c - Vry);
 	crsPt.safe = false;
-	//
-	//場合分け
+	// 場合分け
 	bool straight_y = false;	
 	// 傾きが無限大に近い
 	float angle = atan2(Vcy,Vcx);
@@ -152,8 +151,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	}
 	return crsPt;
 }
-
-//障害物とx,y座標の交差位置を算出
+//障害物データ群に対する各x,y座標の交差位置を算出(交差位置の配列)
 // 相対速度を使用する
 void obstacleAvoidance::crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_vel, float& cmd_angle){
 	//
@@ -170,25 +168,37 @@ void obstacleAvoidance::crossPointsDetect(std::vector<crossPoint>& crsPts, float
 	// float cmd_vel;
 	// float cmd_angle;
 	// 番号
-	int index;
+	// int index;
 	//交差位置を算出
 	// crsPts.resize(clstr.data.size());
 	for(int k=0; k<clstr.data.size(); k++){
-		index = k;
-		crsPts[k] = getCrossPoint(index, clstr.data[k].gc, clstr.twist[k],cmd_vel,cmd_angle);
+		crsPts[k] = getCrossPoint(k, clstr.data[k].gc, clstr.twist[k],cmd_vel,cmd_angle);
 	}
 }
+//交差位置に対するコストを算出する
+float obstacleAvoidance::culcCrossPointCost(crossPoint& crsPt){
+	// eta_cp : cost算出用パラメータ
+	//コスト関数: あとで変更する予定
+	float cost_cp = eta_cp / (eta_cp + crsPt.dis);
+	return cost_cp;
+}
+// 交差位置に対するコストを算出, 取得する
 float obstacleAvoidance::getCrossPointCost(float& cmd_vel, float& cmd_angle){
-	//交差位置ベクトル
+	// 交差位置ベクトル
 	std::vector<crossPoint> crsPts;
 	crsPts.resize(clstr.data.size());
-	
-	//交差位置と障害物状態の取得
+	// 交差位置と障害物状態の取得
 	crossPointsDetect(crsPts,cmd_vel,cmd_angle);
-
-	//cast算出
-	
-
+	// 衝突検出フラグ
+	// cost算出
+	float sumCost_cp;//交差位置に対するコスト値
+	for(int k = 0; k < crsPts.size(); k++){
+		if(crsPts[k].safe){
+			continue;
+		}
+		sumCost_cp += culcCrossPointCost(crsPts[k]);
+	}
+	return sumCost_cp;
 }
 // 評価関数で目標角度を設定
 void obstacleAvoidance::evaluation(float& angle){
@@ -213,7 +223,7 @@ void obstacleAvoidance::searchProcess(){
 		setCmdVel();
 		setCmdAngle();
 		//交差位置算出
-		crossPointsDetect();
+		// crossPointsDetect();
 		//評価
 		evaluation(angle);
 	}
