@@ -155,7 +155,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 
 //障害物とx,y座標の交差位置を算出
 // 相対速度を使用する
-void obstacleAvoidance::crossPointsDetect(){
+void obstacleAvoidance::crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_vel, float& cmd_angle){
 	//
 	// struct crossPoint{
 	// 	float x;//交差位置x
@@ -164,19 +164,31 @@ void obstacleAvoidance::crossPointsDetect(){
 	// 	float t;//交差時の時間
 	// 	int index;//障害物番号
 	// };
-	std::vector<crossPoint> crsPts;
+	// std::vector<crossPoint> crsPts;
 	//ロボット速度 
 	// 目標速度(探査対象)
-	float cmd_vel;
-	float cmd_angle;
+	// float cmd_vel;
+	// float cmd_angle;
 	// 番号
 	int index;
 	//交差位置を算出
-	crsPts.resize(clstr.data.size());
+	// crsPts.resize(clstr.data.size());
 	for(int k=0; k<clstr.data.size(); k++){
 		index = k;
 		crsPts[k] = getCrossPoint(index, clstr.data[k].gc, clstr.twist[k],cmd_vel,cmd_angle);
 	}
+}
+float obstacleAvoidance::getCrossPointCost(float& cmd_vel, float& cmd_angle){
+	//交差位置ベクトル
+	std::vector<crossPoint> crsPts;
+	crsPts.resize(clstr.data.size());
+	
+	//交差位置と障害物状態の取得
+	crossPointsDetect(crsPts,cmd_vel,cmd_angle);
+
+	//cast算出
+	
+
 }
 // 評価関数で目標角度を設定
 void obstacleAvoidance::evaluation(float& angle){
