@@ -85,6 +85,9 @@ void obstacleAvoidance::crossPointChecker(){
     //エンコーダ速度セット
     // robotEncoder.vel.r = debugEncoderVel_r;
     // robotEncoder.vel.l = debugEncoderVel_l;
+    //座標変換 local to rviz
+    // debugGpRef.x = 
+
     //交差位置を取得
     crossPoint crsPtTemp = getCrossPoint(debugIndexRef, debugGpRef,debugTwistRef,debugCmd_vel,debugCmd_angle);
 
@@ -105,8 +108,8 @@ void obstacleAvoidance::crossPointChecker(){
     ROS_INFO("t_cross:%f",crsPt.t);
     //危険, 安全障害物ともに同じように表示している
     //
-    marker.pose.position.x = crsPt.x;
-    marker.pose.position.y = crsPt.y;
+    marker.pose.position.x = crsPt.y;
+    marker.pose.position.y = -crsPt.x;
     marker.pose.position.z = 0;
     marker.color.a = 1.0;
     marker.color.r = colors[k][0];
@@ -117,14 +120,14 @@ void obstacleAvoidance::crossPointChecker(){
     markerArray.markers[k++] = marker;
     //障害物位置と速度ベクトル
     marker.type = visualization_msgs::Marker::ARROW;
-    marker.scale.x = debugObstacleRadius*2;
-    marker.scale.y = debugObstacleRadius*2;
+    marker.scale.x = debugObstacleRadius*2+abs(debugTwistRef.linear.y);
+    marker.scale.y = debugObstacleRadius*2+abs(-debugTwistRef.linear.x);
     marker.scale.z = 0.1;
-    marker.pose.position.x = debugGpRef.x;
-    marker.pose.position.y = debugGpRef.y;
+    marker.pose.position.x = debugGpRef.y;
+    marker.pose.position.y = -debugGpRef.x;
     marker.pose.position.z = debugGpRef.z;
     //angle
-    double yaw = std::atan2(debugTwistRef.linear.x,debugTwistRef.linear.y);
+    double yaw = std::atan2(-debugTwistRef.linear.x, debugTwistRef.linear.y);
     //culc Quaternion
     marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
     //

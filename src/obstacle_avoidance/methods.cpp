@@ -90,15 +90,18 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	// 傾きが無限大に近い
 	float angle = atan2(Vcy,Vcx);
 	float angleThreshold = M_PI/18;//10 deg :後でrqt_reconfigureで設定できるようにする
-	if(std::abs(angle) < angleThreshold){
+	float frontAngle = M_PI_2;
+	ROS_INFO("angle:%f",angle/M_PI * 180);
+	if(std::abs(angle + frontAngle) < angleThreshold){
 		straight_y = true;
 	}
 	//正面方向で直線移動の障害物
 	if(straight_y){
+		ROS_INFO("Xox:%f",Xox);
 		crsPt.x = Xox;
 		crsPt.y = 0;
 		crsPt.dis = Xox;
-		crsPt.t = Xoy/Vcy;
+		crsPt.t = (0-Xoy)/Vcy;
 		crsPt.index = index;
 	}
 	//それ以外
@@ -108,17 +111,18 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 		float b = Xoy - a*Xox;
 		//交差位置 仮
 		// x = 0
+		ROS_INFO("%f x + %f ",a,b);
 		crossPoint crsPt_x0;
 		crsPt_x0.x = 0;
 		crsPt_x0.y = b;
 		crsPt_x0.dis = crsPt_x0.y;
-		crsPt_x0.t = Xox/Vcx;//
+		crsPt_x0.t = (0-Xox)/Vcx;//
 		// y = 0
 		crossPoint crsPt_y0;
 		crsPt_y0.x = - a / b;
 		crsPt_y0.y = 0;
 		crsPt_y0.dis = crsPt_y0.x;
-		crsPt_y0.t = Xoy/Vcy;//
+		crsPt_y0.t = (0-Xoy)/Vcy;//
 		// 時間t が短い方を採用 and t > 0
 		if(crsPt_x0.t < 0 && crsPt_y0.t < 0){
 			//時間がどちらもマイナス -> 遠ざかっている障害物
@@ -149,6 +153,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 			}
 		}
 	}
+	ROS_INFO("%f,crsPt:%f,%f",crsPt.t,crsPt.x,crsPt.y);
 	return crsPt;
 }
 //障害物データ群に対する各x,y座標の交差位置を算出(交差位置の配列)
