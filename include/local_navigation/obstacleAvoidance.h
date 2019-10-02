@@ -36,7 +36,7 @@ class obstacleAvoidance{
         ros::Publisher pub;
         // 処理
         //ロボットデータ
-        float d;
+        float d;//車輪間隔の半分
         //回避コストパラメータ
         float k_cp, eta_cp;//交差位置に対する重み
         float k_o, eta_o;//静止障害物に対する重み
@@ -46,10 +46,22 @@ class obstacleAvoidance{
         
         // デバッグ用
 		ros::NodeHandle nhDeb;
-        ros::Publisher pubDebPcl,pubDebMarker;
+        ros::Publisher pubDebPcl,pubDebMarker,pubDebMarkerArray;
         int debugType;
-        float timeRange, timeInteval;//表示時間範囲(~秒後まで表示),表示時間間隔(~秒ごとに表示)
+        //カラーリスト
         float colors[12][3] ={{1.0,0,1.0},{1.0,1.0,0},{0,1.0,1.0},{1.0,0,0},{0,1.0,0},{0,0,1.0},{0.5,1.0,0},{0,0.5,1.0},{0.5,0,1.0},{1.0,0.5,0},{0,1.0,0.5},{1.0,0,0.5}};//色リスト
+        //クロスポイントチェッカー入力
+        bool debugFlag_crossPointChecker;
+        float debugEncoderVel_r;//ロボットエンコーダ速度(右車輪)
+        float debugEncoderVel_l;//ロボットエンコーダ速度(左車輪)
+        float debugCmd_vel;//ロボット目標速度
+        float debugCmd_angle;//ロボット目標角度
+        int debugIndexRef;//障害物番号
+        geometry_msgs::Point debugGpRef;//クラスタ重心
+        geometry_msgs::Twist debugTwistRef;//障害物速度
+        float debugObstacleRadius;//障害物半径
+        float debugRobotRadius;//ロボット半径
+
         //--rqt_reconfigure
         bool rqt_reconfigure;//rqt_reconfigureを使用するか
         dynamic_reconfigure::Server<local_navigation::obstacleAvoidanceConfig> server;
@@ -65,6 +77,7 @@ class obstacleAvoidance{
         //in property.cpp
         //セット：内部パラメータの書き込み
         void setLaunchParam();//launchファイルからの探索窓パラメータ書き込み
+        void setDefaultCrossPointChecker();//デバッグ用のパラメータ初期化
         //ゲット：内部パラメータの読み込み
         //
         //in methods.cpp
@@ -94,5 +107,6 @@ class obstacleAvoidance{
         void debug();
         void showCrossPoints();
         void showCostMap();
+        void crossPointChecker();
 };
 #endif

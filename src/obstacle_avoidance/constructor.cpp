@@ -14,11 +14,14 @@ obstacleAvoidance::obstacleAvoidance()
 
 	//デバッグ用
 	// pubDebPcl= nhDeb.advertise<sensor_msgs::PointCloud2>("debugEstimatedVelocity", 1);
-	pubDebMarker= nhDeb.advertise<visualization_msgs::MarkerArray>("crossPointMarker", 1);
+	pubDebMarkerArray= nhDeb.advertise<visualization_msgs::MarkerArray>("crossPointMarkerArray", 1);
+	pubDebMarker= nhDeb.advertise<visualization_msgs::MarkerArray>("crossPointCheckerResult", 1);
 
 	//launchファイルからパラメータの読み込み
 	//ROS_INFO("setLaunchParam");
 	setLaunchParam();
+	//クロスポイントチェッカーデフォルト値入力
+	setDefaultCrossPointChecker();
 	//
 	//rqt_reconfigure
 	f = boost::bind(&obstacleAvoidance::configCallback, this, _1, _2);

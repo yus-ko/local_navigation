@@ -7,5 +7,6 @@ int main(int argc,char **argv){
 	// ROS_INFO("obstacleAvoidance define");
     obstacleAvoidance oa; //
     ros::spin();
+	
 	return 0;
 }

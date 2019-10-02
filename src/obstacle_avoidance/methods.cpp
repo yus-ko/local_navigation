@@ -38,7 +38,7 @@ void obstacleAvoidance::manage(){
 	ROS_INFO("into manage");
 	//
 	ROS_INFO("publishData");
-	publishData();
+	// publishData();
 	ROS_INFO("debug");
 	debug();
 }
