@@ -70,6 +70,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	//cmd_angle は水平右をx軸, 正面をy軸とする
 	float Vrx_c = cmd_vel * cos(cmd_angle);
 	float Vry_c = cmd_vel * sin(cmd_angle);
+	ROS_INFO("Vr(x,y):(%f,%f)",Vrx_c,Vry_c);
 	//障害物
 	// 位置
 	float Xox = gpRef.x;
@@ -82,8 +83,10 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	//交差位置
 	crossPoint crsPt;
 	bool safeObstacle = false;
+	ROS_INFO("Vo(x,y):(%f,%f)",Vox,Voy);
 	float Vcx = Vox - (Vrx_c - Vrx);
 	float Vcy = Voy - (Vry_c - Vry);
+	ROS_INFO("Vc(x,y):(%f,%f)",Vcx,Vcy);
 	crsPt.safe = false;
 	// 場合分け
 	bool straight_y = false;	
@@ -119,10 +122,11 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 		crsPt_x0.t = (0-Xox)/Vcx;//
 		// y = 0
 		crossPoint crsPt_y0;
-		crsPt_y0.x = - a / b;
+		crsPt_y0.x = - b /a;	
 		crsPt_y0.y = 0;
 		crsPt_y0.dis = crsPt_y0.x;
 		crsPt_y0.t = (0-Xoy)/Vcy;//
+		ROS_INFO("x0,y0;(%f,%f),(%f,%f)",crsPt_x0.x,crsPt_x0.y,crsPt_y0.x,crsPt_y0.y);
 		// 時間t が短い方を採用 and t > 0
 		if(crsPt_x0.t < 0 && crsPt_y0.t < 0){
 			//時間がどちらもマイナス -> 遠ざかっている障害物
