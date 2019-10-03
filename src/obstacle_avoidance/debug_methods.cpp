@@ -98,7 +98,7 @@ void obstacleAvoidance::crossPointChecker(){
     marker.header.stamp = ros::Time::now();
     marker.action = visualization_msgs::Marker::ADD;
     int k = 0;
-    markerArray.markers.resize(3);
+    markerArray.markers.resize(100);
     marker.scale.x = (debugObstacleRadius+debugRobotRadius)*2;
     marker.scale.y = (debugObstacleRadius+debugRobotRadius)*2;
     marker.scale.z = 0.1;
@@ -118,11 +118,22 @@ void obstacleAvoidance::crossPointChecker(){
     marker.type = visualization_msgs::Marker::SPHERE;
     marker.id = k;
     markerArray.markers[k++] = marker;
+    //text crossPoint
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.4;
+    marker.pose.position.z += 1.0;
+    marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    marker.text = "xy:("+ std::to_string(crsPt.x) +","+ std::to_string(crsPt.y)+") \n t:"+std::to_string(crsPt.t);
+    marker.id = k;
+    markerArray.markers[k++] = marker;
+    //
     //障害物位置と速度ベクトル
     marker.type = visualization_msgs::Marker::ARROW;
     marker.scale.x = debugObstacleRadius*2+abs(debugTwistRef.linear.y);
     marker.scale.y = debugObstacleRadius*2+abs(-debugTwistRef.linear.x);
     marker.scale.z = 0.1;
+    // local -> rviz 
     marker.pose.position.x = debugGpRef.y;
     marker.pose.position.y = -debugGpRef.x;
     marker.pose.position.z = debugGpRef.z;
@@ -137,6 +148,18 @@ void obstacleAvoidance::crossPointChecker(){
     marker.color.b = colors[k][2];
     marker.id = k;
     markerArray.markers[k++] = marker;
+    //text ObstaclePoint
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.3;
+    marker.pose.position.z += 2.0;
+    marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    marker.text = "xy:("+ std::to_string(debugGpRef.x) +","+ std::to_string(debugGpRef.y)+")"+ "\n"
+                    + "v,ang:("+ std::to_string(debugTwistRef.linear.x) +","+ std::to_string(debugTwistRef.linear.y)+")"+ "\n"
+                    + "state:" + ( (crsPtTemp.safe == true) ? "SAFE" : "WARNING");
+    marker.id = k;
+    markerArray.markers[k++] = marker;
+    //
     //ロボットの目標速度と目標角度
     marker.type = visualization_msgs::Marker::ARROW;
     marker.scale.x = debugRobotRadius*2;
@@ -146,7 +169,8 @@ void obstacleAvoidance::crossPointChecker(){
     marker.pose.position.y = 0;
     marker.pose.position.z = 0;
     //angle
-    yaw = debugCmd_angle;
+    // local -> rviz 
+    yaw = debugCmd_angle - M_PI_2;
     //culc Quaternion
     marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
     //
@@ -156,6 +180,17 @@ void obstacleAvoidance::crossPointChecker(){
     marker.color.b = colors[k][2];
     marker.id = k;
     markerArray.markers[k++] = marker;
+    //text RobotPoint
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.3;
+    marker.pose.position.z += 0.5;
+    marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    marker.text = "v,ang:("+ std::to_string(debugCmd_vel) +","+ std::to_string(debugCmd_angle)+")";
+    marker.id = k;
+    markerArray.markers[k++] = marker;
+
+    markerArray.markers.resize(k);
 
     pubDebMarker.publish( markerArray );
 }

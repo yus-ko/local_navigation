@@ -82,13 +82,21 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	int index = indexRef;
 	//交差位置
 	crossPoint crsPt;
-	bool safeObstacle = false;
 	ROS_INFO("Vo(x,y):(%f,%f)",Vox,Voy);
 	float Vcx = Vox - (Vrx_c - Vrx);
 	float Vcy = Voy - (Vry_c - Vry);
 	ROS_INFO("Vc(x,y):(%f,%f)",Vcx,Vcy);
 	crsPt.safe = false;
+	//Safe Time range
+	float safeTime = 100;
 	// 場合分け
+	//相対速度ゼロ
+	if(Vcx == 0&& Vcy ==0){
+		crsPt.safe = true;
+		return crsPt;
+	}
+
+	// 直線(y軸方向で接近)
 	bool straight_y = false;	
 	// 傾きが無限大に近い
 	float angle = atan2(Vcy,Vcx);
@@ -120,12 +128,14 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 		crsPt_x0.y = b;
 		crsPt_x0.dis = crsPt_x0.y;
 		crsPt_x0.t = (0-Xox)/Vcx;//
+		crsPt_x0.safe = false;
 		// y = 0
 		crossPoint crsPt_y0;
 		crsPt_y0.x = - b /a;	
 		crsPt_y0.y = 0;
 		crsPt_y0.dis = crsPt_y0.x;
 		crsPt_y0.t = (0-Xoy)/Vcy;//
+		crsPt_y0.safe = false;
 		ROS_INFO("x0,y0;(%f,%f),(%f,%f)",crsPt_x0.x,crsPt_x0.y,crsPt_y0.x,crsPt_y0.y);
 		// 時間t が短い方を採用 and t > 0
 		if(crsPt_x0.t < 0 && crsPt_y0.t < 0){
@@ -158,6 +168,9 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 		}
 	}
 	ROS_INFO("%f,crsPt:%f,%f",crsPt.t,crsPt.x,crsPt.y);
+	if(crsPt.t > safeTime){
+		crsPt.safe = true;
+	}
 	return crsPt;
 }
 //障害物データ群に対する各x,y座標の交差位置を算出(交差位置の配列)
