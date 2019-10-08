@@ -43,7 +43,12 @@ class obstacleAvoidance{
         float k_g, eta_g;//ゴール位置への角度と目標角度に対する重み
         float k_theta, eta_theta;//現在の角度と目標角度に対する重み
         float k_omega, eta_omega;//現在の角速度と目標角速度に対する重み
-        
+        //
+    	std::vector<crossPoint> crsPts;
+        float goal_angle;
+        float pre_angle;
+        float angle_min,angle_max, angle_dev;
+        std::vector<double> hst;//ヒストグラム配列
         // デバッグ用
 		ros::NodeHandle nhDeb;
         ros::Publisher pubDebPcl,pubDebMarker,pubDebMarkerArray;
@@ -94,13 +99,20 @@ class obstacleAvoidance{
         //処理
         crossPoint getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cmd_vel, float& cmd_angle);
         void crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_vel, float& cmd_angle);
-        float culcCrossPointCost(crossPoint& crsPt);
-        float getCrossPointCost(float& cmd_vel, float& cmd_angle);
-        void labelObstacles();
-        void evaluation(float& angle);
+        float generalCostFunction(float& eta, float& value);
+        float costCrossPoint(crossPoint& crsPt);
+        float getCrossPointCost(float& cmd_vel, float& cmd_angle);//交差位置コスト
+        bool checkSafetyObstacle(float& t, float& angle, float& x, float& y);
+        double evaluation(float& vel, float& angle);
         void searchProcess();
         void setCmdVel();
         void setCmdAngle();
+        //vfh+
+        void setHistgramParam();
+        void setHistgramData();
+        float costVFHGoalAngle(float goalAngle);//vfh+第1項
+        float costVFHDeltaAngle(float delAngle);//vfh+第2項
+        float costVFHDeltaOmega(float delOmega);//vfh+第3項
         // データ送信
         void publishData();//データ送信
         //デバッグ用のメソッド
