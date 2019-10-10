@@ -23,6 +23,10 @@ obstacleAvoidance::obstacleAvoidance()
 	//クロスポイントチェッカーデフォルト値入力
 	setDefaultCrossPointChecker();
 	//
+	//vfhクラスのパラメータ設定
+	vfh_c.set_histgram_param(angle_min,angle_max, angle_dev);
+	vfh_c.set_dis_threshold(dis_th);
+	vfh_c.set_eta(eta_g, eta_theta, eta_omega);
 	//rqt_reconfigure
 	f = boost::bind(&obstacleAvoidance::configCallback, this, _1, _2);
 	server.setCallback(f);

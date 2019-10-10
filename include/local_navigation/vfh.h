@@ -5,16 +5,21 @@
 
 class vfh{
     private:
-        std::vector<float> hst_dis;//距離ヒストグラム
+        std::vector<double> hst_dis;//距離ヒストグラム
         std::vector<bool> hst_bi;//バイナリヒストグラム
         float initDis;
         float angle_min, angle_max;//センサ測定可能角度
         float angle_div;//ヒストグラム解像度
-        float min_cost;//最小コスト
+        double min_cost;//最小コスト
         float selected_angle;//最小コスト角度
         float dis_threshold;//距離閾値: バイナリ作成用
+        //cost 
+        float eta_goal;
+        float eta_theta;
+        float eta_omega;
     public:
-        vfh();//コンストラクタ
+        vfh(){//コンストラクタ
+        }
         ~vfh(){//デストラクタ
         }
         //transform
@@ -46,7 +51,7 @@ class vfh{
             hst_dis.resize(size,initDis);
         }
         // create binary histgram
-        void create_binary_histgram(){
+        void create_binary_histgram(){//要修正：ロボットと障害物の幅を考慮
             hst_bi.clear();
             hst_bi.resize(hst_dis.size(), true);
             for(int k=0; k < hst_dis.size(); k++){
@@ -55,6 +60,22 @@ class vfh{
                 }
             }
         }
+        //cost function 
+        double generalCostFunction(float& eta, float& value){
+            // eta:  valueに対する重み
+            //コストを返す( 0 〜 1 )
+            return (eta / (eta + value));
+        }
+        double cost_goalAngle(float deltaAngle){
+            return generalCostFunction(eta_goal, deltaAngle);
+        }
+        double cost_theta_depend_time(float deltaAngle){
+            return generalCostFunction(eta_theta, deltaAngle);
+        }
+        double cost_omega_depend_time(float omegaAngle){
+            return generalCostFunction(eta_omega, omegaAngle);
+        }
+        //property
         void set_histgram_param(float& angMin, float& angMax, float& angDiv){
             angle_min = angMin;
             angle_max = angMax;
@@ -62,5 +83,25 @@ class vfh{
             clear_histgram_dis();
             resize_histgram_dis( ((angle_max - angle_min)/angle_div) );
         }
-        
+        void set_dis_threshold(float& data){
+            dis_threshold = data;    
+        }
+        void set_eta(float& goal, float& theta, float& omega){
+                eta_goal = goal;
+                eta_theta = theta;
+                eta_omega = omega;
+        }
+        void get_histgram_dis(std::vector<double>& data){
+            data = hst_dis;
+        }
+        void get_histgram_bi(std::vector<bool>& data){
+            data = hst_bi;
+        }
+        double get_min_cost(){
+            return min_cost;
+        }
+        float get_selected_angle(){
+            return selected_angle;
+        }
 };
+#endif

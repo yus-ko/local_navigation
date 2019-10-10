@@ -22,6 +22,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <local_navigation/obstacleAvoidanceConfig.h>
 #include <local_navigation/struct.h>
+#include <local_navigation/vfh.h>
 //クラスの定義
 class obstacleAvoidance{
     private:
@@ -48,7 +49,10 @@ class obstacleAvoidance{
         float goal_angle;
         float pre_angle;
         float angle_min,angle_max, angle_dev;
-        std::vector<double> hst;//ヒストグラム配列
+        float dis_th;//距離ヒストグラムの閾値
+        std::vector<double> hst_dis;//ヒストグラム配列(距離)
+        std::vector<bool> hst_bi;//ヒストグラム配列(２値化後)
+        vfh vfh_c;//vfhクラス
         // デバッグ用
 		ros::NodeHandle nhDeb;
         ros::Publisher pubDebPcl,pubDebMarker,pubDebMarkerArray;
@@ -98,16 +102,19 @@ class obstacleAvoidance{
         void configCallback(local_navigation::obstacleAvoidanceConfig &config, uint32_t level);
         //処理
         crossPoint getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cmd_vel, float& cmd_angle);
+        void crossPointsDetect(float& cmd_vel, float& cmd_angle);
         void crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_vel, float& cmd_angle);
         float generalCostFunction(float& eta, float& value);
         float costCrossPoint(crossPoint& crsPt);
-        float getCrossPointCost(float& cmd_vel, float& cmd_angle);//交差位置コスト
+        float getCrossPointCost();//交差位置コスト
         bool checkSafetyObstacle(float& t, float& angle, float& x, float& y);
         double evaluation(float& vel, float& angle);
         void searchProcess();
         void setCmdVel();
         void setCmdAngle();
         //vfh+
+        void create_histgram();
+		void create_binary_histgram();
         void setHistgramParam();
         void setHistgramData();
         float costVFHGoalAngle(float goalAngle);//vfh+第1項
