@@ -24,7 +24,7 @@ obstacleAvoidance::obstacleAvoidance()
 	setDefaultCrossPointChecker();
 	//
 	//vfhクラスのパラメータ設定
-	vfh_c.set_histgram_param(angle_min,angle_max, angle_dev);
+	vfh_c.set_histgram_param(angle_min,angle_max, angle_div);
 	vfh_c.set_dis_threshold(dis_th);
 	vfh_c.set_eta(eta_g, eta_theta, eta_omega);
 	//rqt_reconfigure

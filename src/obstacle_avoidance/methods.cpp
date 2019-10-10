@@ -22,6 +22,8 @@ void obstacleAvoidance::robotEncoder_callback(const beego_control::beego_encoder
 	ROS_INFO("robotEncoder_callback");
     //データをコピー
 	robotEncoder = *msg;
+	cur_vel = (robotEncoder.vel.r + robotEncoder.vel.l)/2;
+	cur_angVel = (robotEncoder.vel.r - robotEncoder.vel.l)/(2 * d);
 	//move manage method
 	// manage();
 }
@@ -104,7 +106,7 @@ bool obstacleAvoidance::checkSafetyObstacle(float& t, float& angle, float& x, fl
 }
 //障害物１つに対するx,y座標の交差位置を算出(交差位置を返す)
 // 相対速度を使用する
-crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cmd_vel, float& cmd_angle){
+crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cmd_dV, float& cmd_dAng){
 	// 
 	// struct crossPoint{
 	// 	float x;//交差位置x
@@ -116,14 +118,14 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	// std::vector<crossPoint> crsPts;
 	//ロボット速度 
 	// 現在の走行速度
-	float v = (robotEncoder.vel.r + robotEncoder.vel.l)/2;
-	float w = (robotEncoder.vel.r - robotEncoder.vel.l)/(2 * d);
+	float v = cur_vel;
+	float w = cur_angVel;
 	float Vrx = v * cos(w*1 + M_PI_2);
 	float Vry = v * sin(w*1 + M_PI_2);
 	// 目標速度(探査対象)
-	//cmd_angle は水平右をx軸, 正面をy軸とする
-	float Vrx_c = cmd_vel * cos(cmd_angle);
-	float Vry_c = cmd_vel * sin(cmd_angle);
+	//cmd_dAng は水平右をx軸, 正面をy軸とする
+	float Vrx_c = cmd_dV * cos(cmd_dAng);
+	float Vry_c = cmd_dV * sin(cmd_dAng);
 	ROS_INFO("Vr(x,y):(%f,%f)",Vrx_c,Vry_c);
 	//障害物
 	// 位置
@@ -234,7 +236,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 }
 //障害物データ群に対する各x,y座標の交差位置を算出(交差位置の配列)
 // 相対速度を使用する
-void obstacleAvoidance::crossPointsDetect(float& cmd_vel, float& cmd_angle){
+void obstacleAvoidance::crossPointsDetect(float& cmd_dV, float& cmd_dAng){
 	//
 	// struct crossPoint{
 	// 	float x;//交差位置x
@@ -246,36 +248,19 @@ void obstacleAvoidance::crossPointsDetect(float& cmd_vel, float& cmd_angle){
 	// std::vector<crossPoint> crsPts;
 	//ロボット速度 
 	// 目標速度(探査対象)
-	// float cmd_vel;
-	// float cmd_angle;
+	// float cmd_dV;
+	// float cmd_dAng;
 	// 番号
 	// int index;
 	//交差位置を算出
 	// crsPts.resize(clstr.data.size());
 	for(int k=0; k<clstr.data.size(); k++){
-		crsPts[k] = getCrossPoint(k, clstr.data[k].gc, clstr.twist[k],cmd_vel,cmd_angle);
+		crsPts[k] = getCrossPoint(k, clstr.data[k].gc, clstr.twist[k],cmd_dV,cmd_dAng);
 	}
 }
-void obstacleAvoidance::crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_vel, float& cmd_angle){
-	//
-	// struct crossPoint{
-	// 	float x;//交差位置x
-	// 	float y;//交差位置y
-	// 	float dis;//交差位置とロボットの距離
-	// 	float t;//交差時の時間
-	// 	int index;//障害物番号
-	// };
-	// std::vector<crossPoint> crsPts;
-	//ロボット速度 
-	// 目標速度(探査対象)
-	// float cmd_vel;
-	// float cmd_angle;
-	// 番号
-	// int index;
-	//交差位置を算出
-	// crsPts.resize(clstr.data.size());
+void obstacleAvoidance::crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_dV, float& cmd_dAng){
 	for(int k=0; k<clstr.data.size(); k++){
-		crsPts[k] = getCrossPoint(k, clstr.data[k].gc, clstr.twist[k],cmd_vel,cmd_angle);
+		crsPts[k] = getCrossPoint(k, clstr.data[k].gc, clstr.twist[k],cmd_dV,cmd_dAng);
 	}
 }
 //--コスト関数
@@ -323,11 +308,10 @@ float obstacleAvoidance::getCrossPointCost(){
 // 評価関数で全体コストを算出
 double obstacleAvoidance::evaluation(float& vel, float& angle){
 	//process
-
 	//get each cost
 	float costCross = getCrossPointCost();//交差位置コスト
 	float costGoalAng = costVFHGoalAngle(abs(goal_angle - angle));//目的地角度
-	float costDeltaAng = costVFHDeltaAngle(abs(angle - pre_angle));//角度差
+	float costDeltaAng = costVFHDeltaAngle(abs(angle - cur_angle));//角度差
 	// float costDeltaOmg = costVFHDeltaOmega(abs(omega - pre_omega));//角速度差
 	float costStaticObst;//未作成
 	double eval;
@@ -344,30 +328,54 @@ void obstacleAvoidance::searchProcess(){
 	//探索回数
 	int count = 0;
 	const int countThreshold =10;
-	//探査対象
-	float vel;
-	float angle;
 	//最適化対象: 評価値
 	double evalMax;//最大値
 	double evalVal = evalMax;
 	//探索処理
-	while(count++ > countThreshold){
-		//探索プロセス
-		//探査値の設定
-		setCmdVel();
-		setCmdAngle();
-		//交差位置算出
-		crsPts.resize(clstr.data.size());// 交差位置ベクトル
-		// 交差位置と障害物状態の取得
-		crossPointsDetect(vel,angle);
-		//
-		create_histgram();
-		create_binary_histgram();
-		// crossPointsDetect();
-		//評価
-		float evalTemp = evaluation(vel, angle);
-		if(evalTemp < evalVal){
-			evalVal = evalTemp;
+	// while(count++ > countThreshold){
+	// 	//探索プロセス
+	// 	//探査値の設定
+	// 	setCmdVel();
+	// 	setCmdAngle();
+	// 	//交差位置算出
+	// 	crsPts.resize(clstr.data.size());// 交差位置ベクトル
+	// 	// 交差位置と障害物状態の取得
+	// 	crossPointsDetect(vel,angle);
+	// 	//ヒストグラム作成
+	// 	create_histgram();
+	// 	create_binary_histgram();
+	// 	//評価
+	// 	float evalTemp = evaluation(vel, angle);
+	// 	if(evalTemp < evalVal){
+	// 		evalVal = evalTemp;
+	// 	}
+	// }
+	//--全探査
+	float dV = 0;//探査対象dv
+	float dAng = 0;//探査対象dAng
+	for(float search_dV = cur_vel-dV_range; dV <= cur_vel+dV_range; dV +=dV_div){
+		if(search_dV + cur_vel > 0.6 || search_dV + cur_vel <= 0.0){
+			continue;
+		}
+		for(float search_dAng = angle_min; search_dAng < angle_max; search_dAng +=angle_div){
+			//探索プロセス
+			//探査値の設定
+			// setCmdVel();
+			// setCmdAngle();
+			//交差位置算出
+			crsPts.resize(clstr.data.size());// 交差位置ベクトル
+			// 交差位置と障害物状態の取得
+			crossPointsDetect(search_dV,search_dAng);
+			//ヒストグラム作成
+			create_histgram();
+			create_binary_histgram();
+			//評価
+			float evalTemp = evaluation(search_dV, search_dAng);
+			if(evalTemp < evalVal){
+				evalVal = evalTemp;
+				dV = search_dV;
+				dAng = search_dAng;
+			}
 		}
 	}
 }
@@ -389,10 +397,10 @@ void obstacleAvoidance::create_histgram(){
 	//選択角度範囲
 	// float angle_min = M_PI_4;//最小センサ角度
 	// float angle_max = M_PI_2 + M_PI_4;//最大センサ角度
-	// float angle_dev = 1.0;//解像度
+	// float angle_div = 1.0;//解像度
 	//
 	// std::vector<double> hst;//ヒストグラム配列
-	// hst.resize( (int)((angle_max - angle_min)/angle_dev) );
+	// hst.resize( (int)((angle_max - angle_min)/angle_div) );
 	//process
 	for(int k =0; k < clstr.data.size(); k++){//クラスタ数
 		//障害部判断結果を使用

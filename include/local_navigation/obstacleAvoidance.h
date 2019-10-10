@@ -47,8 +47,10 @@ class obstacleAvoidance{
         //
     	std::vector<crossPoint> crsPts;
         float goal_angle;
-        float pre_angle;
-        float angle_min,angle_max, angle_dev;
+        float cur_angle;
+        float angle_min,angle_max, angle_div;
+        float cur_vel,cur_angVel;
+        float dV_range, dV_div;
         float dis_th;//距離ヒストグラムの閾値
         std::vector<double> hst_dis;//ヒストグラム配列(距離)
         std::vector<bool> hst_bi;//ヒストグラム配列(２値化後)
