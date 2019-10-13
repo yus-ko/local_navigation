@@ -1,7 +1,7 @@
 ﻿#include<local_navigation/obstacleAvoidance.h>
 
 obstacleAvoidance::obstacleAvoidance()
-	:d(0.3145)
+	:d(0.3145),angle_min(M_PI_4),angle_max(M_PI_2 + M_PI_4), angle_div(M_PI/180.0)
 {
 	//ROS_INFO("subscriber define");
 	//subscriber
@@ -15,8 +15,9 @@ obstacleAvoidance::obstacleAvoidance()
 	//デバッグ用
 	// pubDebPcl= nhDeb.advertise<sensor_msgs::PointCloud2>("debugEstimatedVelocity", 1);
 	pubDebMarkerArray= nhDeb.advertise<visualization_msgs::MarkerArray>("crossPointMarkerArray", 1);
-	pubDebMarker= nhDeb.advertise<visualization_msgs::MarkerArray>("crossPointCheckerResult", 1);
-
+	pubDebCross= nhDeb.advertise<visualization_msgs::MarkerArray>("crossPointCheckerResult", 1);
+	pubDebHst = nhDeb.advertise<visualization_msgs::MarkerArray>("histgramChecker", 1);
+	pubDebOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputChecker", 1);
 	//launchファイルからパラメータの読み込み
 	//ROS_INFO("setLaunchParam");
 	setLaunchParam();

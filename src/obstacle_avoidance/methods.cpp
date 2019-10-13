@@ -39,6 +39,10 @@ void obstacleAvoidance::goalOdom_callback(const nav_msgs::Odometry::ConstPtr& ms
 void obstacleAvoidance::manage(){
 	ROS_INFO("into manage");
 	//
+	//ヒストグラム作成
+	// create_histgram();
+	// create_binary_histgram();
+	//
 	ROS_INFO("publishData");
 	// publishData();
 	ROS_INFO("debug");
@@ -118,15 +122,15 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	// std::vector<crossPoint> crsPts;
 	//ロボット速度 
 	// 現在の走行速度
-	float v = cur_vel;
-	float w = cur_angVel;
-	float Vrx = v * cos(w*1 + M_PI_2);
-	float Vry = v * sin(w*1 + M_PI_2);
+	// float v = cur_vel;
+	// float w = cur_angVel;
+	// float Vrx = v * cos(w*1 + M_PI_2);
+	// float Vry = v * sin(w*1 + M_PI_2);
 	// 目標速度(探査対象)
 	//cmd_dAng は水平右をx軸, 正面をy軸とする
-	float Vrx_c = cmd_dV * cos(cmd_dAng);
-	float Vry_c = cmd_dV * sin(cmd_dAng);
-	ROS_INFO("Vr(x,y):(%f,%f)",Vrx_c,Vry_c);
+	float dVrx_c = cmd_dV * cos(cmd_dAng);
+	float dVry_c = cmd_dV * sin(cmd_dAng);
+	ROS_INFO("Vr(x,y):(%f,%f)",dVrx_c,dVry_c);
 	//障害物
 	// 位置
 	float Xox = gpRef.x;
@@ -139,8 +143,8 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	//交差位置
 	crossPoint crsPt;
 	ROS_INFO("Vo(x,y):(%f,%f)",Vox,Voy);
-	float Vcx = Vox - (Vrx_c - Vrx);
-	float Vcy = Voy - (Vry_c - Vry);
+	float Vcx = Vox - dVrx_c;
+	float Vcy = Voy - dVry_c;
 	crsPt.vx = Vcx;
 	crsPt.vy = Vcy;
 	ROS_INFO("Vc(x,y):(%f,%f)",Vcx,Vcy);
@@ -331,6 +335,9 @@ void obstacleAvoidance::searchProcess(){
 	//最適化対象: 評価値
 	double evalMax;//最大値
 	double evalVal = evalMax;
+	//交差位置のりサイズ
+	crsPts.resize(clstr.data.size());// 交差位置ベクトル
+
 	//探索処理
 	// while(count++ > countThreshold){
 	// 	//探索プロセス
@@ -363,12 +370,8 @@ void obstacleAvoidance::searchProcess(){
 			// setCmdVel();
 			// setCmdAngle();
 			//交差位置算出
-			crsPts.resize(clstr.data.size());// 交差位置ベクトル
 			// 交差位置と障害物状態の取得
 			crossPointsDetect(search_dV,search_dAng);
-			//ヒストグラム作成
-			create_histgram();
-			create_binary_histgram();
 			//評価
 			float evalTemp = evaluation(search_dV, search_dAng);
 			if(evalTemp < evalVal){
@@ -403,9 +406,8 @@ void obstacleAvoidance::create_histgram(){
 	// hst.resize( (int)((angle_max - angle_min)/angle_div) );
 	//process
 	for(int k =0; k < clstr.data.size(); k++){//クラスタ数
-		//障害部判断結果を使用
-		if(crsPts[k].safe){
-			//safe
+		//静止障害物のみADD
+		if(clstr.twist[k].linear.x ==0 && clstr.twist[k].linear.y == 0){
 			continue;
 		}
 		//各クラスタに含まれる点群を取得しヒストグラムを作成
@@ -416,6 +418,6 @@ void obstacleAvoidance::create_histgram(){
 		}
 	}
 }
-void obstacleAvoidance::create_binary_histgram(){
-	vfh_c.create_binary_histgram();
+void obstacleAvoidance::create_binary_histgram(float& robotRadius, float& marginRadius){
+	vfh_c.create_binary_histgram(robotRadius,marginRadius);
 }

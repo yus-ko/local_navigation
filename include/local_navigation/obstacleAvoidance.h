@@ -57,7 +57,7 @@ class obstacleAvoidance{
         vfh vfh_c;//vfhクラス
         // デバッグ用
 		ros::NodeHandle nhDeb;
-        ros::Publisher pubDebPcl,pubDebMarker,pubDebMarkerArray;
+        ros::Publisher pubDebPcl,pubDebCross,pubDebMarkerArray, pubDebHst,pubDebOutput;
         int debugType;
         //カラーリスト
         float colors[12][3] ={{1.0,0,1.0},{1.0,1.0,0},{0,1.0,1.0},{1.0,0,0},{0,1.0,0},{0,0,1.0},{0.5,1.0,0},{0,0.5,1.0},{0.5,0,1.0},{1.0,0.5,0},{0,1.0,0.5},{1.0,0,0.5}};//色リスト
@@ -71,8 +71,35 @@ class obstacleAvoidance{
         geometry_msgs::Point debugGpRef;//クラスタ重心
         geometry_msgs::Twist debugTwistRef;//障害物速度
         float debugObstacleRadius;//障害物半径
-        float debugRobotRadius;//ロボット半径
-
+        float debugRobotRadius;//ロボット半径（ヒストグラムチェッカーでも使用）
+        //ヒストグラムチェッカー入力
+        bool debugHistgramCheckerFlag;
+        int debugObstacleNum;
+        float debugObstacleX1;
+        float debugObstacleY1;
+        float debugObstacleSize1;
+        float debugObstacleX2;
+        float debugObstacleY2;
+        float debugObstacleSize2;
+        float debugObstacleX3;
+        float debugObstacleY3;
+        float debugObstacleSize3;
+        float debugThresholdDistance;
+        float debugMinAngle;
+        float debugMaxAngle;
+        float debugDivAngle;
+        float debugMarginRadius;//マージン半径
+        //出力チェッカー
+        bool debugOutputCheckerFlag;
+        float debugKcp, debugEtaCp;//交差位置に対する重み
+        float debugKo, debugEtaO;//静止障害物に対する重み
+        float debugKg, debugEtaG;//ゴール位置への角度と目標角度に対する重み
+        float debugKtheta, debugEtaTheta;//現在の角度と目標角度に対する重み
+        float debugKomega, debugEtaOmega;//現在の角速度と目標角速度に対する重み
+        float debugGoalAng;//目標角度 
+        float debugCurAng;//現在の角度
+        float debugCurAngVel;//角速度を取得
+        float debugControlKp;//制御用pゲイン
         //--rqt_reconfigure
         bool rqt_reconfigure;//rqt_reconfigureを使用するか
         dynamic_reconfigure::Server<local_navigation::obstacleAvoidanceConfig> server;
@@ -116,7 +143,7 @@ class obstacleAvoidance{
         void setCmdAngle();
         //vfh+
         void create_histgram();
-		void create_binary_histgram();
+		void create_binary_histgram(float& robotRadius, float& marginRadius);
         void setHistgramParam();
         void setHistgramData();
         float costVFHGoalAngle(float goalAngle);//vfh+第1項
@@ -129,5 +156,7 @@ class obstacleAvoidance{
         void showCrossPoints();
         void showCostMap();
         void crossPointChecker();
+        void histgramChecker();
+        void outputChecker();
 };
 #endif

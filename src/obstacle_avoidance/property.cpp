@@ -60,10 +60,52 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     debugTwistRef.angular.z = config.debugTwistRefAngular_theta;//障害物速度anguler z
     debugObstacleRadius = config.debugObstacleRadius;//障害物半径
     debugRobotRadius = config.debugRobotRadius;//ロボット半径
-
     //checkCrossPoint
     if(debugFlag_crossPointChecker){
         crossPointChecker();
+    }
+
+    //ヒストグラムチェッカー
+    debugHistgramCheckerFlag = config.debugHistgramCheckerFlag;
+    debugObstacleNum = config.debugObstacleNum;
+    debugObstacleX1 = config.debugObstacleX1;
+    debugObstacleY1 = config.debugObstacleY1;
+    debugObstacleSize1 = config.debugObstacleSize1;
+    debugObstacleX2 = config.debugObstacleX2;
+    debugObstacleY2 = config.debugObstacleY2;
+    debugObstacleSize2 = config.debugObstacleSize2;
+    debugObstacleX3 = config.debugObstacleX3;
+    debugObstacleY3  = config.debugObstacleY3;
+    debugObstacleSize3 = config.debugObstacleSize3;
+    debugThresholdDistance = config.debugThresholdDistance;
+    debugMinAngle = config.debugMinAngle;
+    debugMaxAngle = config.debugMaxAngle;
+    debugDivAngle = config.debugDivAngle;
+    debugEtaG = config.debugEtaG;
+    debugEtaTheta = config.debugEtaTheta;
+    debugEtaOmega = config.debugEtaOmega;
+    debugMarginRadius = config.debugMarginRadius;
+    if(debugHistgramCheckerFlag){
+        histgramChecker();
+    }
+    //出力チェッカー
+    debugOutputCheckerFlag = config.debugOutputCheckerFlag;
+    debugEtaCp = config.debugEtaCp;
+    debugEtaO = config.debugEtaO;
+    debugEtaG = config.debugEtaG;
+    debugEtaTheta = config.debugEtaTheta;
+    debugEtaOmega = config.debugEtaOmega;
+    debugKcp = config.debugKcp;
+    debugKo = config.debugKo;
+    debugKg = config.debugKg;
+    debugKtheta = config.debugKtheta;
+    debugKomega = config.debugKomega;
+    debugGoalAng = config.debugGoalAng;
+    debugCurAng = config.debugCurAng;
+    debugCurAngVel = config.debugCurAngVel;
+    debugControlKp = config.debugControlKp;
+    if(debugOutputCheckerFlag){
+       outputChecker();
     }
 }
 void obstacleAvoidance::setDefaultCrossPointChecker(){

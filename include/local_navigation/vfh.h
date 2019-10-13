@@ -51,29 +51,49 @@ class vfh{
             hst_dis.resize(size,initDis);
         }
         // create binary histgram
-        void create_binary_histgram(){//要修正：ロボットと障害物の幅を考慮
+        void create_binary_histgram(float& robotRadius, float& marginRadius){//要修正：ロボットと障害物の幅を考慮
             hst_bi.clear();
             hst_bi.resize(hst_dis.size(), true);
             for(int k=0; k < hst_dis.size(); k++){
-                if(hst_dis[k] <= dis_threshold){
+                if(!hst_bi[k]){
+                    continue;
+                }
+                if(hst_dis[k] <= dis_threshold && hst_dis[k]!=initDis ){
                     hst_bi[k] = false;
+                    //block width
+                    double blockAng = atan2((robotRadius+marginRadius), hst_dis[k])*180/M_PI;
+                    int blockNum = (int)(blockAng/angle_div)+1;
+                    // ROS_INFO("blockAng, blockNum:(%f,%d)",blockAng,blockNum);
+                    for(int i = k-blockNum/2; i <= k+blockNum/2; i++){
+                        if(i<0 || i>(int)hst_dis.size()){
+                            continue;
+                        }
+                        hst_bi[i] = false;
+                    }
                 }
             }
         }
         //cost function 
-        double generalCostFunction(float& eta, float& value){
+        double generalCostFunction(float& eta, float value){
             // eta:  valueに対する重み
             //コストを返す( 0 〜 1 )
-            return (eta / (eta + value));
+            // return (1 / (1 + ( abs(value) / eta)) );
+            return (1 / (1 + ( abs(value) / eta)) );
+        }
+        double angleCostFunction(float& eta, float value){
+            return (pow(abs(value)/180.0/eta,2.0));
         }
         double cost_goalAngle(float deltaAngle){
-            return generalCostFunction(eta_goal, deltaAngle);
+            // return generalCostFunction(eta_goal, deltaAngle);
+            return angleCostFunction(eta_goal, deltaAngle);
         }
         double cost_theta_depend_time(float deltaAngle){
-            return generalCostFunction(eta_theta, deltaAngle);
+            // return generalCostFunction(eta_theta, deltaAngle);
+            return angleCostFunction(eta_theta, deltaAngle);
         }
         double cost_omega_depend_time(float omegaAngle){
-            return generalCostFunction(eta_omega, omegaAngle);
+            // return generalCostFunction(eta_omega, omegaAngle);
+            return angleCostFunction(eta_omega, omegaAngle);
         }
         //property
         void set_histgram_param(float& angMin, float& angMax, float& angDiv){
@@ -81,7 +101,7 @@ class vfh{
             angle_max = angMax;
             angle_div = angDiv;
             clear_histgram_dis();
-            resize_histgram_dis( ((angle_max - angle_min)/angle_div) );
+            resize_histgram_dis( (int)((angle_max - angle_min)/angle_div) );
         }
         void set_dis_threshold(float& data){
             dis_threshold = data;    
