@@ -40,9 +40,13 @@ void obstacleAvoidance::manage(){
 	ROS_INFO("into manage");
 	//
 	//ヒストグラム作成
-	// create_histgram();
-	// create_binary_histgram();
-	//
+	create_histgram();
+	create_binary_histgram(robotRadius, marginRadius);
+	//探索処理
+	float tagVel, tagAng;
+	searchProcess(tagVel, tagAng);
+	//命令速度生成
+	geometry_msgs::Twist cmd = controler(tagVel, tagAng);
 	ROS_INFO("publishData");
 	// publishData();
 	ROS_INFO("debug");
@@ -53,7 +57,7 @@ bool obstacleAvoidance::checkSafetyObstacle(float& t, float& angle, float& x, fl
 	//Safe Time range
 	float safeTime = 100;
 	//process
-	//時間がマイナス
+	//時間がマイナスor当分ぶつからない
 	if( t > safeTime){
 		return true;
 	}
@@ -61,12 +65,12 @@ bool obstacleAvoidance::checkSafetyObstacle(float& t, float& angle, float& x, fl
 		return true;
 	}
 	//
-	ROS_INFO("angle:%f",angle);
+	//ROS_INFO("angle:%f",angle);
 	if(x > 0){
 		if(y > 0){//第1象限
 			if(angle <= -M_PI_2 && angle >= -M_PI){
 				//WARNIGN
-				ROS_INFO("Num 1 field WARNIGN");
+				//ROS_INFO("Num 1 field WARNIGN");
 			}
 			else{
 				//SAFE
@@ -74,9 +78,9 @@ bool obstacleAvoidance::checkSafetyObstacle(float& t, float& angle, float& x, fl
 			}
 		}
 		else{//第4象限
-			if(angle <=0 && angle > -M_PI_2){
+			if(angle <=M_PI && angle > M_PI_2){
 				//WARNIGN					
-				ROS_INFO("Num 4 field WARNIGN");
+				//ROS_INFO("Num 4 field WARNIGN");
 			}
 			else{
 				//SAFE
@@ -86,9 +90,9 @@ bool obstacleAvoidance::checkSafetyObstacle(float& t, float& angle, float& x, fl
 	}
 	else{
 		if(y > 0){//第2象限
-			if(angle >= M_PI_2 && angle <= M_PI){
+			if(angle >= -M_PI_2 && angle <= 0){
 				//WARNIGN		
-				ROS_INFO("Num 2 field WARNIGN");			
+				//ROS_INFO("Num 2 field WARNIGN");			
 			}
 			else{
 				//SAFE
@@ -98,7 +102,7 @@ bool obstacleAvoidance::checkSafetyObstacle(float& t, float& angle, float& x, fl
 		else{//第3象限
 			if(angle >=0 && angle < M_PI_2){
 				//WARNIGN	
-				ROS_INFO("Num 3 field WARNIGN");				
+				//ROS_INFO("Num 3 field WARNIGN");				
 			}
 			else{
 				//SAFE
@@ -130,7 +134,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	//cmd_dAng は水平右をx軸, 正面をy軸とする
 	float dVrx_c = cmd_dV * cos(cmd_dAng);
 	float dVry_c = cmd_dV * sin(cmd_dAng);
-	ROS_INFO("Vr(x,y):(%f,%f)",dVrx_c,dVry_c);
+	//ROS_INFO("Vr(x,y):(%f,%f)",dVrx_c,dVry_c);
 	//障害物
 	// 位置
 	float Xox = gpRef.x;
@@ -142,12 +146,12 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	int index = indexRef;
 	//交差位置
 	crossPoint crsPt;
-	ROS_INFO("Vo(x,y):(%f,%f)",Vox,Voy);
+	//ROS_INFO("Vo(x,y):(%f,%f)",Vox,Voy);
 	float Vcx = Vox - dVrx_c;
 	float Vcy = Voy - dVry_c;
 	crsPt.vx = Vcx;
 	crsPt.vy = Vcy;
-	ROS_INFO("Vc(x,y):(%f,%f)",Vcx,Vcy);
+	//ROS_INFO("Vc(x,y):(%f,%f)",Vcx,Vcy);
 	crsPt.safe = false;
 	// 場合分け
 	//相対速度ゼロ
@@ -162,13 +166,13 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 	float angle = atan2(Vcy,Vcx);
 	float angleThreshold = M_PI/18;//10 deg :後でrqt_reconfigureで設定できるようにする
 	float frontAngle = M_PI_2;
-	ROS_INFO("angle:%f",angle/M_PI * 180);
+	//ROS_INFO("angle:%f",angle/M_PI * 180);
 	if(std::abs(angle + frontAngle) < angleThreshold){
 		straight_y = true;
 	}
 	//正面方向で直線移動の障害物
 	if(straight_y){
-		ROS_INFO("Xox:%f",Xox);
+		//ROS_INFO("Xox:%f",Xox);
 		crsPt.x = Xox;
 		crsPt.y = 0;
 		crsPt.dis = Xox;
@@ -182,7 +186,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 		float b = Xoy - a*Xox;
 		//交差位置 仮
 		// x = 0
-		ROS_INFO("%f x + %f ",a,b);
+		//ROS_INFO("%f x + %f ",a,b);
 		crossPoint crsPt_x0;
 		crsPt_x0.x = 0;
 		crsPt_x0.y = b;
@@ -196,7 +200,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 		crsPt_y0.dis = crsPt_y0.x;
 		crsPt_y0.t = (0-Xoy)/Vcy;//
 		crsPt_y0.safe = false;
-		ROS_INFO("x0,y0;(%f,%f),(%f,%f)",crsPt_x0.x,crsPt_x0.y,crsPt_y0.x,crsPt_y0.y);
+		//ROS_INFO("x0,y0;(%f,%f),(%f,%f)",crsPt_x0.x,crsPt_x0.y,crsPt_y0.x,crsPt_y0.y);
 		// 時間t が短い方を採用 and t > 0
 		if(crsPt_x0.t < 0 && crsPt_y0.t < 0){
 			//時間がどちらもマイナス -> 遠ざかっている障害物
@@ -226,7 +230,7 @@ crossPoint obstacleAvoidance::getCrossPoint(int& indexRef,geometry_msgs::Point& 
 			}
 		}
 	}
-	ROS_INFO("%f,crsPt:%f,%f",crsPt.t,crsPt.x,crsPt.y);
+	//ROS_INFO("%f,crsPt:%f,%f",crsPt.t,crsPt.x,crsPt.y);
 	// if(crsPt.t > safeTime){
 	// 	crsPt.safe = true;
 	// }
@@ -275,32 +279,23 @@ float obstacleAvoidance::generalCostFunction(float& eta, float& value){
 	return (eta / (eta + value));
 }
 //交差位置に対するコストを算出する
-float obstacleAvoidance::costCrossPoint(crossPoint& crsPt){
+double obstacleAvoidance::costCrossPoint(crossPoint& crsPt){
 	// eta_cp : cost算出用パラメータ
 	//コスト関数: あとで変更する予定
-	return (generalCostFunction(eta_cp, crsPt.dis));
+	return (-(pow(crsPt.dis/crsPt.t/eta_cp,2.0)));
 }
-float obstacleAvoidance::costVFHGoalAngle(float goalAngle){//vfh+第1項
-	// eta_g : cost算出用パラメータ
-	//コスト関数: 目的地角度差に対するコスト関数
-	return (generalCostFunction(eta_g, goalAngle));
-}
-float obstacleAvoidance::costVFHDeltaAngle(float delAngle){//vfh+第2項
-	// eta_theta : cost算出用パラメータ
-	//コスト関数: 角度変化に対するコスト関数
-	return (generalCostFunction(eta_theta, delAngle));
-}
-float obstacleAvoidance::costVFHDeltaOmega(float delOmega){//vfh+第3項
-	// eta_omega : cost算出用パラメータ
-	//コスト関数: 角速度度変化に対するコスト関数
-	return (generalCostFunction(eta_omega, delOmega));
+double obstacleAvoidance::costCrossPoint(crossPoint& crsPt, float eta_cp){
+	// eta_cp : cost算出用パラメータ
+	//コスト関数: あとで変更する予定
+	// return (-(pow(crsPt.dis/crsPt.t/eta_cp,2.0)));
+	return ((pow(1/crsPt.dis/eta_cp,2.0)/crsPt.t));
 }
 
 // 交差位置に対するコストを算出, 取得する
-float obstacleAvoidance::getCrossPointCost(){
+double obstacleAvoidance::getCrossPointCost(std::vector<crossPoint>& crsPts){
 	// 衝突検出フラグ
 	// cost算出
-	float sumCost_cp;//交差位置に対するコスト値
+	float sumCost_cp=0;//交差位置に対するコスト値
 	for(int k = 0; k < crsPts.size(); k++){
 		if(crsPts[k].safe){
 			continue;
@@ -309,71 +304,103 @@ float obstacleAvoidance::getCrossPointCost(){
 	}
 	return sumCost_cp;
 }
-// 評価関数で全体コストを算出
-double obstacleAvoidance::evaluation(float& vel, float& angle){
-	//process
-	//get each cost
-	float costCross = getCrossPointCost();//交差位置コスト
-	float costGoalAng = costVFHGoalAngle(abs(goal_angle - angle));//目的地角度
-	float costDeltaAng = costVFHDeltaAngle(abs(angle - cur_angle));//角度差
-	// float costDeltaOmg = costVFHDeltaOmega(abs(omega - pre_omega));//角速度差
-	float costStaticObst;//未作成
-	double eval;
-	eval = k_cp * costCross
-	 + k_g * costGoalAng
-	 + k_o * costStaticObst
-	 + k_theta * costDeltaAng;
-	//  + k_omega * costDeltaOmega; 
+double obstacleAvoidance::getCrossPointCost(std::vector<crossPoint>& crsPts, float eta_cp){
+	// 衝突検出フラグ
+	// cost算出
+	float sumCost_cp=0;//交差位置に対するコスト値
+	for(int k = 0; k < crsPts.size(); k++){
+		if(crsPts[k].safe){
+			continue;
+		}
+		sumCost_cp += costCrossPoint(crsPts[k], eta_cp);
+	}
+	return sumCost_cp;
+}
+
+geometry_msgs::Twist obstacleAvoidance::controler(float& tagVel, float& tagAng){
+	//p制御
+	double cur_ang = 90;//正面を向いているため
+	float gainP = 0.01;
+	float tagAngVel = (tagAng-cur_ang)*gainP;
 	//
-	return eval;
+	geometry_msgs::Twist twist;
+	twist.linear.x =tagVel; 
+	twist.linear.y =0; 
+	twist.linear.z =0;
+	twist.angular.x =0;
+	twist.angular.y =0;
+	twist.angular.z =tagAngVel;
+
+	return twist;
+}
+void obstacleAvoidance::searchProcess(float& tagVel, float& tagAng){
+	//only angle
+	vfh_angleSearch(tagAng);
+	//
+	//angle and vel 
+	// search_vel_ang(tagVel, tagAng);
+
 }
 // 最適角度探索
-void obstacleAvoidance::searchProcess(){
+float obstacleAvoidance::vfh_angleSearch(float& target_angle){//return cost
+	//バイナリヒストグラム
+    std::vector<bool> histgram_bi;
+    vfh_c.get_histgram_bi(histgram_bi);
+	double goalAng = atan2(goal_y, goal_x)*180/M_PI;
+	//weight正規化
+    double sum_weight = k_cp + k_theta + k_omega + k_cp;
+    k_g/=sum_weight;
+    k_theta/=sum_weight;
+    k_omega/=sum_weight;
+    k_cp/=sum_weight;
+    //コスト算出
+    double min_cost = 1;
+    int min_num = -1;
+    for(int i=0; i<histgram_bi.size();i++){
+        if(!histgram_bi[i]){
+            continue;
+        }
+        // double l = histgram_dis[i];
+        double ang = vfh_c.transform_numToAngle(i);//deg
+        float cmd_ang = ang*M_PI/180;
+		double cur_ang = 90;//正面を向いているため
+        //-PI,PI系と0,PI系の問題を調整, 角度差の最大値補正
+        vfh_c.check_goalAng(goalAng);
+		double difAng = goalAng - ang;
+        double angVel = (ang - debugCurAng)*debugControlKp;
+		//コスト算出
+        double goalCost = vfh_c.cost_goalAngle(difAng);
+        double angCost = vfh_c.cost_theta_depend_time(ang - cur_ang);
+        double angVelCost = vfh_c.cost_omega_depend_time(angVel - cur_ang);
+        double crossCost = getCrossPointCost(crsPts,eta_cp);
+        double cost = k_g * goalCost + k_theta * angCost + k_omega * angVelCost + k_cp*crossCost;
+        if(min_cost > cost){
+            min_cost = cost;
+            min_num = i;
+        }
+    }
+	//目標角度
+	target_angle = vfh_c.transform_numToAngle(min_num);
+	
+	return min_cost;
+}
+void obstacleAvoidance::search_vel_ang(float& target_vel, float& target_angle){
 	//探索回数
 	int count = 0;
 	const int countThreshold =10;
 	//最適化対象: 評価値
 	double evalMax;//最大値
 	double evalVal = evalMax;
-	//交差位置のりサイズ
-	crsPts.resize(clstr.data.size());// 交差位置ベクトル
-
-	//探索処理
-	// while(count++ > countThreshold){
-	// 	//探索プロセス
-	// 	//探査値の設定
-	// 	setCmdVel();
-	// 	setCmdAngle();
-	// 	//交差位置算出
-	// 	crsPts.resize(clstr.data.size());// 交差位置ベクトル
-	// 	// 交差位置と障害物状態の取得
-	// 	crossPointsDetect(vel,angle);
-	// 	//ヒストグラム作成
-	// 	create_histgram();
-	// 	create_binary_histgram();
-	// 	//評価
-	// 	float evalTemp = evaluation(vel, angle);
-	// 	if(evalTemp < evalVal){
-	// 		evalVal = evalTemp;
-	// 	}
-	// }
 	//--全探査
 	float dV = 0;//探査対象dv
 	float dAng = 0;//探査対象dAng
 	for(float search_dV = cur_vel-dV_range; dV <= cur_vel+dV_range; dV +=dV_div){
-		if(search_dV + cur_vel > 0.6 || search_dV + cur_vel <= 0.0){
+		if(search_dV + cur_vel > 0.6 || search_dV + cur_vel <= 0.0){//
 			continue;
 		}
 		for(float search_dAng = angle_min; search_dAng < angle_max; search_dAng +=angle_div){
-			//探索プロセス
-			//探査値の設定
-			// setCmdVel();
-			// setCmdAngle();
-			//交差位置算出
-			// 交差位置と障害物状態の取得
-			crossPointsDetect(search_dV,search_dAng);
 			//評価
-			float evalTemp = evaluation(search_dV, search_dAng);
+			float evalTemp = vfh_angleSearch(search_dAng);
 			if(evalTemp < evalVal){
 				evalVal = evalTemp;
 				dV = search_dV;
@@ -381,6 +408,9 @@ void obstacleAvoidance::searchProcess(){
 			}
 		}
 	}
+	target_vel = dV + cur_vel;
+	target_angle = dAng;
+
 }
 // セット命令速度(最適探査用)
 void obstacleAvoidance::setCmdVel(){
@@ -407,7 +437,7 @@ void obstacleAvoidance::create_histgram(){
 	//process
 	for(int k =0; k < clstr.data.size(); k++){//クラスタ数
 		//静止障害物のみADD
-		if(clstr.twist[k].linear.x ==0 && clstr.twist[k].linear.y == 0){
+		if(clstr.twist[k].linear.x !=0 || clstr.twist[k].linear.y != 0){
 			continue;
 		}
 		//各クラスタに含まれる点群を取得しヒストグラムを作成

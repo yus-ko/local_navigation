@@ -36,9 +36,13 @@ class obstacleAvoidance{
 		ros::NodeHandle nhPub;
         ros::Publisher pub;
         // 処理
-        //ロボットデータ
+        //launch ファイル
+        //--ロボットパラメータ
         float d;//車輪間隔の半分
-        //回避コストパラメータ
+        float robotRadius;//ロボット半径
+        //--vfh
+        float marginRadius;//マージン半径
+        float dis_th;//距離ヒストグラムの閾値
         float k_cp, eta_cp;//交差位置に対する重み
         float k_o, eta_o;//静止障害物に対する重み
         float k_g, eta_g;//ゴール位置への角度と目標角度に対する重み
@@ -46,18 +50,18 @@ class obstacleAvoidance{
         float k_omega, eta_omega;//現在の角速度と目標角速度に対する重み
         //
     	std::vector<crossPoint> crsPts;
-        float goal_angle;
+        float goal_x, goal_y;
         float cur_angle;
         float angle_min,angle_max, angle_div;
         float cur_vel,cur_angVel;
         float dV_range, dV_div;
-        float dis_th;//距離ヒストグラムの閾値
+        //
         std::vector<double> hst_dis;//ヒストグラム配列(距離)
         std::vector<bool> hst_bi;//ヒストグラム配列(２値化後)
         vfh vfh_c;//vfhクラス
         // デバッグ用
 		ros::NodeHandle nhDeb;
-        ros::Publisher pubDebPcl,pubDebCross,pubDebMarkerArray, pubDebHst,pubDebOutput;
+        ros::Publisher pubDebPcl,pubDebCross,pubDebMarkerArray, pubDebHst,pubDebOutput,pubDebCPVFHOutput;
         int debugType;
         //カラーリスト
         float colors[12][3] ={{1.0,0,1.0},{1.0,1.0,0},{0,1.0,1.0},{1.0,0,0},{0,1.0,0},{0,0,1.0},{0.5,1.0,0},{0,0.5,1.0},{0.5,0,1.0},{1.0,0.5,0},{0,1.0,0.5},{1.0,0,0.5}};//色リスト
@@ -89,17 +93,30 @@ class obstacleAvoidance{
         float debugMaxAngle;
         float debugDivAngle;
         float debugMarginRadius;//マージン半径
-        //出力チェッカー
-        bool debugOutputCheckerFlag;
-        float debugKcp, debugEtaCp;//交差位置に対する重み
+        //VFH出力チェッカー
+        bool debugOutputVFHCheckerFlag;
         float debugKo, debugEtaO;//静止障害物に対する重み
         float debugKg, debugEtaG;//ゴール位置への角度と目標角度に対する重み
         float debugKtheta, debugEtaTheta;//現在の角度と目標角度に対する重み
         float debugKomega, debugEtaOmega;//現在の角速度と目標角速度に対する重み
         float debugGoalAng;//目標角度 
+        float debugGoalPosX;//目標位置X
+        float debugGoalPosY;//目標位置Y 
         float debugCurAng;//現在の角度
         float debugCurAngVel;//角速度を取得
         float debugControlKp;//制御用pゲイン
+        //CP-VFH出力チェッカー
+        bool debugOutputCPVFHCheckerFlag;
+        float debugKcp, debugEtaCp;//交差位置に対する重み
+        float debugObstacleVx1;
+        float debugObstacleVy1;
+        float debugObstacleVx2;
+        float debugObstacleVy2;
+        float debugObstacleVx3;
+        float debugObstacleVy3;
+        float debugObstacleSizeThreshold;
+        geometry_msgs::Point debugGp1,debugGp2,debugGp3;//クラスタ重心
+        geometry_msgs::Twist debugTwist1,debugTwist2,debugTwist3;//障害物速度
         //--rqt_reconfigure
         bool rqt_reconfigure;//rqt_reconfigureを使用するか
         dynamic_reconfigure::Server<local_navigation::obstacleAvoidanceConfig> server;
@@ -134,21 +151,22 @@ class obstacleAvoidance{
         void crossPointsDetect(float& cmd_vel, float& cmd_angle);
         void crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_vel, float& cmd_angle);
         float generalCostFunction(float& eta, float& value);
-        float costCrossPoint(crossPoint& crsPt);
-        float getCrossPointCost();//交差位置コスト
+        double costCrossPoint(crossPoint& crsPt);
+        double costCrossPoint(crossPoint& crsPt, float eta_cp);
+        double getCrossPointCost(std::vector<crossPoint>& crsPts);//交差位置コスト
+        double getCrossPointCost(std::vector<crossPoint>& crsPts, float eta_cp);//交差位置コスト
         bool checkSafetyObstacle(float& t, float& angle, float& x, float& y);
-        double evaluation(float& vel, float& angle);
-        void searchProcess();
+        void searchProcess(float& tagVel, float& tagAng);
+        void search_vel_ang(float& target_vel, float& target_angle);        
+        float vfh_angleSearch(float& target_angle);//return cost
         void setCmdVel();
         void setCmdAngle();
+        geometry_msgs::Twist controler(float& tagVel, float& tagAng);
         //vfh+
         void create_histgram();
 		void create_binary_histgram(float& robotRadius, float& marginRadius);
         void setHistgramParam();
         void setHistgramData();
-        float costVFHGoalAngle(float goalAngle);//vfh+第1項
-        float costVFHDeltaAngle(float delAngle);//vfh+第2項
-        float costVFHDeltaOmega(float delOmega);//vfh+第3項
         // データ送信
         void publishData();//データ送信
         //デバッグ用のメソッド
@@ -157,6 +175,7 @@ class obstacleAvoidance{
         void showCostMap();
         void crossPointChecker();
         void histgramChecker();
-        void outputChecker();
+        void outputVFHChecker();
+        void outputCrossPointVFHChecker();
 };
 #endif

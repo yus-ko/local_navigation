@@ -14,9 +14,9 @@ class vfh{
         float selected_angle;//最小コスト角度
         float dis_threshold;//距離閾値: バイナリ作成用
         //cost 
-        float eta_goal;
-        float eta_theta;
-        float eta_omega;
+        float eta_goal, k_goal;
+        float eta_theta, k_theta;
+        float eta_omega, k_omega;
     public:
         vfh(){//コンストラクタ
         }
@@ -25,6 +25,22 @@ class vfh{
         //transform
         int transform_angle_RobotToNum(float& angle){
             return ( (int)((angle - angle_min)/angle_div) );
+        }
+        float transform_numToAngle(int& num){
+            return ( angle_min + num * angle_div) ;
+        }
+        void check_goalAng(double& goalAng){//-PI,PI系と0,PI系の問題を調整, 角度差の最大値補正
+            if(goalAng < -90){
+                goalAng+=360;
+            }
+            if (goalAng < angle_min )
+            {
+                goalAng = angle_min;
+            }
+            else if (goalAng > angle_max)
+            {
+                goalAng = angle_max;
+            }
         }
         //add histgram element
         void add_histgram_dis(float& angle, float& dis){
@@ -74,25 +90,17 @@ class vfh{
             }
         }
         //cost function 
-        double generalCostFunction(float& eta, float value){
-            // eta:  valueに対する重み
-            //コストを返す( 0 〜 1 )
-            // return (1 / (1 + ( abs(value) / eta)) );
-            return (1 / (1 + ( abs(value) / eta)) );
-        }
         double angleCostFunction(float& eta, float value){
-            return (pow(abs(value)/180.0/eta,2.0));
+            return (pow(value/180.0/eta,2.0));
+            // return (value/180.0/eta);
         }
         double cost_goalAngle(float deltaAngle){
-            // return generalCostFunction(eta_goal, deltaAngle);
             return angleCostFunction(eta_goal, deltaAngle);
         }
         double cost_theta_depend_time(float deltaAngle){
-            // return generalCostFunction(eta_theta, deltaAngle);
             return angleCostFunction(eta_theta, deltaAngle);
         }
         double cost_omega_depend_time(float omegaAngle){
-            // return generalCostFunction(eta_omega, omegaAngle);
             return angleCostFunction(eta_omega, omegaAngle);
         }
         //property
@@ -110,6 +118,11 @@ class vfh{
                 eta_goal = goal;
                 eta_theta = theta;
                 eta_omega = omega;
+        }
+        void set_k(float& goal, float& theta, float& omega){
+            k_goal = goal;
+            k_theta = theta;
+            k_omega = omega;
         }
         void get_histgram_dis(std::vector<double>& data){
             data = hst_dis;

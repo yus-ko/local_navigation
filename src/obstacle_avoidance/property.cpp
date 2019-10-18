@@ -5,13 +5,19 @@ void obstacleAvoidance::setLaunchParam(){
     ros::NodeHandle n("~");
 	//ロボットパラメータ
 	n.getParam("obstacleAvoidance/WheelD",d);
-    //評価式の重み
+    n.getParam("obstacleAvoidance/angleMin", angle_min);
+    n.getParam("obstacleAvoidance/angleMax", angle_max);
+    n.getParam("obstacleAvoidance/angleDiv", angle_div);
+    
+    //vfh
+    //--k
+    n.getParam("obstacleAvoidance/marginRadius", marginRadius);
 	n.getParam("obstacleAvoidance/Kcp",k_cp);
     n.getParam("obstacleAvoidance/Ko",k_o);
     n.getParam("obstacleAvoidance/Kg",k_g);
     n.getParam("obstacleAvoidance/Ktheta",k_theta);
     n.getParam("obstacleAvoidance/Komega",k_omega);
-    //コスト関数のパラメータ
+    //--eta
     n.getParam("obstacleAvoidance/EtaCp",eta_cp);
     n.getParam("obstacleAvoidance/EtaO",eta_o);
     n.getParam("obstacleAvoidance/EtaG",eta_g);
@@ -89,25 +95,72 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
         histgramChecker();
     }
     //出力チェッカー
-    debugOutputCheckerFlag = config.debugOutputCheckerFlag;
-    debugEtaCp = config.debugEtaCp;
+    debugOutputVFHCheckerFlag = config.debugOutputVFHCheckerFlag;
     debugEtaO = config.debugEtaO;
     debugEtaG = config.debugEtaG;
     debugEtaTheta = config.debugEtaTheta;
     debugEtaOmega = config.debugEtaOmega;
-    debugKcp = config.debugKcp;
     debugKo = config.debugKo;
     debugKg = config.debugKg;
     debugKtheta = config.debugKtheta;
     debugKomega = config.debugKomega;
-    debugGoalAng = config.debugGoalAng;
+    // debugGoalAng = config.debugGoalAng;
+    debugGoalPosX = config.debugGoalPosX;
+    debugGoalPosY = config.debugGoalPosY;
     debugCurAng = config.debugCurAng;
     debugCurAngVel = config.debugCurAngVel;
     debugControlKp = config.debugControlKp;
-    if(debugOutputCheckerFlag){
-       outputChecker();
+    if(debugOutputVFHCheckerFlag){
+       outputVFHChecker();
+    }
+    //
+    debugOutputCPVFHCheckerFlag = config.debugOutputCPVFHCheckerFlag;
+    debugKcp = config.debugKcp;
+    debugEtaCp = config.debugEtaCp;
+    debugObstacleVx1 = config.debugObstacleVx1;
+    debugObstacleVy1 = config.debugObstacleVy1;
+    debugObstacleVx2 = config.debugObstacleVx2;
+    debugObstacleVy2 = config.debugObstacleVy2;
+    debugObstacleVx3 = config.debugObstacleVx3;
+    debugObstacleVy3 = config.debugObstacleVy3;
+    //位置
+    debugGp1.x = debugObstacleX1;
+    debugGp1.y = debugObstacleY1;
+    debugGp1.z = 0;
+    debugGp2.x = debugObstacleX2;
+    debugGp2.y = debugObstacleY2;
+    debugGp2.z = 0;
+    debugGp3.x = debugObstacleX3;
+    debugGp3.y = debugObstacleY3;
+    debugGp3.z = 0;
+    //速度
+    debugTwist1.linear.x = debugObstacleVx1;
+    debugTwist1.linear.y = debugObstacleVy1;
+    debugTwist1.linear.z = 0;
+    debugTwist2.linear.x = debugObstacleVx2;
+    debugTwist2.linear.y = debugObstacleVy2;
+    debugTwist2.linear.z = 0;
+    debugTwist3.linear.x = debugObstacleVx3;
+    debugTwist3.linear.y = debugObstacleVy3;
+    debugTwist3.linear.z = 0; 
+    //角速度
+    debugTwist1.angular.x = 0;
+    debugTwist1.angular.y = 0;
+    debugTwist1.angular.z = 0;
+    debugTwist2.angular.x = 0;
+    debugTwist2.angular.y = 0;
+    debugTwist2.angular.z = 0;
+    debugTwist3.angular.x = 0;
+    debugTwist3.angular.y = 0;
+    debugTwist3.angular.z = 0;
+    //障害物サイズ閾値
+    debugObstacleSizeThreshold = config.debugObstacleSizeThreshold;
+    //
+    if(debugOutputCPVFHCheckerFlag){
+       outputCrossPointVFHChecker();
     }
 }
+
 void obstacleAvoidance::setDefaultCrossPointChecker(){
     //クロスポイントチェッカー入力
     // float debugEncoderVel_r;//ロボットエンコーダ速度(右車輪)
