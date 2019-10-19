@@ -9,6 +9,7 @@ class vfh{
         std::vector<bool> hst_bi;//バイナリヒストグラム
         float initDis;
         float angle_min, angle_max;//センサ測定可能角度
+        float angle_center;//センサ中心角度
         float angle_div;//ヒストグラム解像度
         double min_cost;//最小コスト
         float selected_angle;//最小コスト角度
@@ -29,6 +30,21 @@ class vfh{
         float transform_numToAngle(int& num){
             return ( angle_min + num * angle_div) ;
         }
+        float transform_angleFromCenter(float& angle){
+            return (angle - angle_center);
+        }
+        //controler
+        float controler(float difAng){
+            //p 制御
+            float gainP = 0.01;//temp
+            float maxCmd = 0.2;//temp
+            float cmdAngVel = difAng * gainP;
+            if(cmdAngVel > maxCmd){
+                cmdAngVel = maxCmd;
+            }
+            return(cmdAngVel);
+        }
+        //
         void check_goalAng(double& goalAng){//-PI,PI系と0,PI系の問題を調整, 角度差の最大値補正
             if(goalAng < -90){
                 goalAng+=360;
@@ -102,6 +118,26 @@ class vfh{
         }
         double cost_omega_depend_time(float omegaAngle){
             return angleCostFunction(eta_omega, omegaAngle);
+        }
+        double getCost(float tagAng, float goalAng, float curAng, float curAngVel){//to vfh class
+            if(goalAng < -90){
+                goalAng+=360;
+                // difAng = goalAng - ang;
+            }
+            if (goalAng < angle_min )
+            {
+                goalAng = angle_min;
+            }
+            else if (goalAng > angle_max)
+            {
+                goalAng = angle_max;
+            }
+            float angVel = controler(tagAng - curAng);
+            double goal_cost = cost_goalAngle(goalAng - tagAng);
+            double angCost = cost_theta_depend_time(tagAng - curAng);
+            double angVelCost = cost_omega_depend_time(angVel - curAngVel);
+            double cost = k_goal*goal_cost + k_theta*angCost + k_omega*angVelCost;
+            return (cost);
         }
         //property
         void set_histgram_param(float& angMin, float& angMax, float& angDiv){
