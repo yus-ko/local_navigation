@@ -4,7 +4,7 @@
 #include<ros/ros.h>
 
 class vfh{
-    private:
+    protected:
         std::vector<double> hst_dis;//距離ヒストグラム
         std::vector<bool> hst_bi;//バイナリヒストグラム
         float initDis;
@@ -16,12 +16,46 @@ class vfh{
         float dis_threshold;//距離閾値: バイナリ作成用
         //cost 
         float eta_goal, k_goal;
-        float eta_theta, k_theta;
-        float eta_omega, k_omega;
+        float eta_curAngle, k_curAngle;
+        float eta_prevAngle, k_prevAngle;
     public:
         vfh(){//コンストラクタ
         }
         ~vfh(){//デストラクタ
+        }
+        //property
+        void set_histgram_param(float& angMin, float& angMax, float& angDiv){
+            angle_min = angMin;
+            angle_max = angMax;
+            angle_div = angDiv;
+            angle_center = (angle_min+angle_max)/2.0;
+            clear_histgram_dis();
+            resize_histgram_dis( (int)((angle_max - angle_min)/angle_div) );
+        }
+        void set_dis_threshold(float& data){
+            dis_threshold = data;    
+        }
+        void set_eta(float& goal, float& theta, float& omega){
+                eta_goal = goal;
+                eta_curAngle = theta;
+                eta_prevAngle = omega;
+        }
+        void set_k(float& goal, float& theta, float& omega){
+            k_goal = goal;
+            k_curAngle = theta;
+            k_prevAngle = omega;
+        }
+        void get_histgram_dis(std::vector<double>& data){
+            data = hst_dis;
+        }
+        void get_histgram_bi(std::vector<bool>& data){
+            data = hst_bi;
+        }
+        double get_min_cost(){
+            return min_cost;
+        }
+        float get_selected_angle(){
+            return selected_angle;
         }
         //transform
         int transform_angle_RobotToNum(float& angle){
@@ -32,42 +66,6 @@ class vfh{
         }
         float transform_angleFromCenter(float& angle){
             return (angle - angle_center);
-        }
-        //controler
-        float controler(float difAng){
-            //p 制御
-            float gainP = 0.01;//temp
-            float maxCmd = 0.2;//temp
-            float cmdAngVel = difAng * gainP;
-            if(cmdAngVel > maxCmd){
-                cmdAngVel = maxCmd;
-            }
-            return(cmdAngVel);
-        }
-        //
-        void check_goalAng(double& goalAng){//-PI,PI系と0,PI系の問題を調整, 角度差の最大値補正
-            if(goalAng < -90){
-                goalAng+=360;
-            }
-            if (goalAng < angle_min )
-            {
-                goalAng = angle_min;
-            }
-            else if (goalAng > angle_max)
-            {
-                goalAng = angle_max;
-            }
-        }
-        //add histgram element
-        void add_histgram_dis(float& angle, float& dis){
-            int num = transform_angle_RobotToNum(angle);
-            //番号チェック
-            if(num >= 0 && num < (int)(hst_dis.size())){
-                //最小値なら格納
-                if(hst_dis[num] > dis || hst_dis[num] == initDis){
-                    hst_dis[num] = dis;
-                }
-            }
         }
         //clear
         void clear_histgram_dis(){
@@ -82,8 +80,19 @@ class vfh{
             initDis = initValue;
             hst_dis.resize(size,initDis);
         }
+        //add histgram element
+        void add_histgram_dis(float& angle, float& dis){
+            int num = transform_angle_RobotToNum(angle);
+            //番号チェック
+            if(num >= 0 && num < (int)(hst_dis.size())){
+                //最小値なら格納
+                if(hst_dis[num] > dis || hst_dis[num] == initDis){
+                    hst_dis[num] = dis;
+                }
+            }
+        }
         // create binary histgram
-        void create_binary_histgram(float& robotRadius, float& marginRadius){//要修正：ロボットと障害物の幅を考慮
+        void create_binary_histgram(float& robotRadius, float& marginRadius){
             hst_bi.clear();
             hst_bi.resize(hst_dis.size(), true);
             for(int k=0; k < hst_dis.size(); k++){
@@ -105,72 +114,44 @@ class vfh{
                 }
             }
         }
+        float min_dif_angle(const float& angle1, const float& angle2){
+            float dif_angle_temp = angle1 - angle2;
+            float dif_angle_p360 = abs(dif_angle_temp + 360);
+            float dif_angle_n360 = abs(dif_angle_temp - 360);
+            float dif_angle = abs(dif_angle_temp);
+            float min_angle = dif_angle;
+            if(min_angle > dif_angle_p360){
+                min_angle = dif_angle_p360;
+            }
+            if(min_angle > dif_angle_n360){
+                min_angle = dif_angle_n360;
+            }
+            return min_angle;
+        }
         //cost function 
-        double angleCostFunction(float& eta, float value){
+        virtual double angleCostFunction(float& eta, float value){
             return (pow(value/180.0/eta,2.0));
             // return (value/180.0/eta);
         }
-        double cost_goalAngle(float deltaAngle){
-            return angleCostFunction(eta_goal, deltaAngle);
+        double cost_goal_angle(const float& angle, float goal_angle){
+            float dif_angle = min_dif_angle(angle,goal_angle);
+            return angleCostFunction(eta_goal, dif_angle);
         }
-        double cost_theta_depend_time(float deltaAngle){
-            return angleCostFunction(eta_theta, deltaAngle);
+        double cost_current_angle(const float& angle, const float& cur_angle){
+            float dif_angle = min_dif_angle(angle, cur_angle);
+            return angleCostFunction(eta_curAngle, dif_angle);
         }
-        double cost_omega_depend_time(float omegaAngle){
-            return angleCostFunction(eta_omega, omegaAngle);
+        double cost_prev_select_angle(const float& angle, const float& pre_target_angle){
+            float dif_angle = min_dif_angle(angle, pre_target_angle);
+            return angleCostFunction(eta_prevAngle, dif_angle);
         }
-        double getCost(float tagAng, float goalAng, float curAng, float curAngVel){//to vfh class
-            if(goalAng < -90){
-                goalAng+=360;
-                // difAng = goalAng - ang;
-            }
-            if (goalAng < angle_min )
-            {
-                goalAng = angle_min;
-            }
-            else if (goalAng > angle_max)
-            {
-                goalAng = angle_max;
-            }
-            float angVel = controler(tagAng - curAng);
-            double goal_cost = cost_goalAngle(goalAng - tagAng);
-            double angCost = cost_theta_depend_time(tagAng - curAng);
-            double angVelCost = cost_omega_depend_time(angVel - curAngVel);
-            double cost = k_goal*goal_cost + k_theta*angCost + k_omega*angVelCost;
+        //
+        double getCost(float tagAng, float goalAng, float curAng, float prevTagAng){//to vfh class
+            double goal_cost = cost_goal_angle(tagAng, goalAng);
+            double ang_cost = cost_current_angle(tagAng, curAng);
+            double prevAng_cost = cost_prev_select_angle(tagAng, prevTagAng);
+            double cost = k_goal*goal_cost + k_curAngle*ang_cost + k_prevAngle*prevAng_cost;
             return (cost);
-        }
-        //property
-        void set_histgram_param(float& angMin, float& angMax, float& angDiv){
-            angle_min = angMin;
-            angle_max = angMax;
-            angle_div = angDiv;
-            clear_histgram_dis();
-            resize_histgram_dis( (int)((angle_max - angle_min)/angle_div) );
-        }
-        void set_dis_threshold(float& data){
-            dis_threshold = data;    
-        }
-        void set_eta(float& goal, float& theta, float& omega){
-                eta_goal = goal;
-                eta_theta = theta;
-                eta_omega = omega;
-        }
-        void set_k(float& goal, float& theta, float& omega){
-            k_goal = goal;
-            k_theta = theta;
-            k_omega = omega;
-        }
-        void get_histgram_dis(std::vector<double>& data){
-            data = hst_dis;
-        }
-        void get_histgram_bi(std::vector<bool>& data){
-            data = hst_bi;
-        }
-        double get_min_cost(){
-            return min_cost;
-        }
-        float get_selected_angle(){
-            return selected_angle;
         }
 };
 #endif
