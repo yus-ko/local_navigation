@@ -8,21 +8,21 @@ void obstacleAvoidance::setLaunchParam(){
     n.getParam("obstacleAvoidance/angleMin", angle_min);
     n.getParam("obstacleAvoidance/angleMax", angle_max);
     n.getParam("obstacleAvoidance/angleDiv", angle_div);
-    
+    //ゴール位置
+    n.getParam("obstacleAvoidance/goalX", goal_x);
+    n.getParam("obstacleAvoidance/goalY", goal_y);
     //vfh
     //--k
     n.getParam("obstacleAvoidance/marginRadius", marginRadius);
 	n.getParam("obstacleAvoidance/Kcp",k_cp);
-    n.getParam("obstacleAvoidance/Ko",k_o);
     n.getParam("obstacleAvoidance/Kg",k_g);
-    n.getParam("obstacleAvoidance/Ktheta",k_theta);
-    n.getParam("obstacleAvoidance/Komega",k_omega);
+    n.getParam("obstacleAvoidance/KcurAngle",k_curAngle);
+    n.getParam("obstacleAvoidance/KprevAngle",k_prevAngle);
     //--eta
     n.getParam("obstacleAvoidance/EtaCp",eta_cp);
-    n.getParam("obstacleAvoidance/EtaO",eta_o);
     n.getParam("obstacleAvoidance/EtaG",eta_g);
-    n.getParam("obstacleAvoidance/EtaTheta",eta_theta);
-    n.getParam("obstacleAvoidance/EtaOmega",eta_omega);
+    n.getParam("obstacleAvoidance/EtaCurAngle",eta_curAngle);
+    n.getParam("obstacleAvoidance/EtaPrevAngle",eta_prevAngle);
     //デバッグ
     n.getParam("obstacleAvoidance/debugType",debugType);
 }
@@ -36,24 +36,24 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
 	// 	);
     //評価式の重み
     k_cp = config.Kcp;
-    k_o = config.Ko;
     k_g = config.Kg;
-    k_theta = config.Ktheta;
-    k_omega = config.Komega;
+    k_curAngle = config.KcurAngle;
+    k_prevAngle = config.KprevAngle;
 	//コスト関数のパラメータ
     eta_cp = config.EtaCp;
-    eta_o = config.EtaO;
     eta_g = config.EtaG;
-    eta_theta = config.EtaTheta;
-    eta_omega = config.EtaOmega;
+    eta_curAngle = config.EtaCurAngle;
+    eta_prevAngle = config.EtaPrevAngle;
 	//デバッグ
     debugType = config.debugType;
     //クロスポイントチェッカー
     debugFlag_crossPointChecker = config.crossPointCheckerFlag;
     // debugEncoderVel_r = config.debugEncoderVel_r;//ロボットエンコーダ速度(右車輪)
     // debugEncoderVel_l = config.debugEncoderVel_l;//ロボットエンコーダ速度(左車輪)
+    debugCur_vel = config.debugCur_vel;
+    debugCur_angle_steer = config.debugCur_angle*M_PI/180;
     debugCmd_vel = config.debugCmd_vel;//ロボット目標速度
-    debugCmd_angle = config.debugCmd_angle;//ロボット目標角度
+    debugCmd_angle = config.debugCmd_angle*M_PI/180;//ロボット目標角度 deg -> rad
     debugIndexRef = config.debugIndexRef;//障害物番号
     debugGpRef.x = config.debugGpRef_x;//クラスタ重心x
     debugGpRef.y = config.debugGpRef_y;//クラスタ重心y
@@ -88,28 +88,25 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     debugMaxAngle = config.debugMaxAngle;
     debugDivAngle = config.debugDivAngle;
     debugEtaG = config.debugEtaG;
-    debugEtaTheta = config.debugEtaTheta;
-    debugEtaOmega = config.debugEtaOmega;
+    debugEtaCurAngle = config.debugEtaCurAngle;
+    debugEtaPrevAngle = config.debugEtaPrevAngle;
     debugMarginRadius = config.debugMarginRadius;
     if(debugHistgramCheckerFlag){
         histgramChecker();
     }
     //出力チェッカー
     debugOutputVFHCheckerFlag = config.debugOutputVFHCheckerFlag;
-    debugEtaO = config.debugEtaO;
     debugEtaG = config.debugEtaG;
-    debugEtaTheta = config.debugEtaTheta;
-    debugEtaOmega = config.debugEtaOmega;
-    debugKo = config.debugKo;
+    debugEtaCurAngle = config.debugEtaCurAngle;
+    debugEtaPrevAngle = config.debugEtaPrevAngle;
     debugKg = config.debugKg;
-    debugKtheta = config.debugKtheta;
-    debugKomega = config.debugKomega;
+    debugKcurAngle = config.debugKcurAngle;
+    debugKprevAngle = config.debugKprevAngle;
     // debugGoalAng = config.debugGoalAng;
     debugGoalPosX = config.debugGoalPosX;
     debugGoalPosY = config.debugGoalPosY;
     debugCurAng = config.debugCurAng;
-    debugCurAngVel = config.debugCurAngVel;
-    debugControlKp = config.debugControlKp;
+    debugPrevTagAng = config.debugPrevTagAng;
     if(debugOutputVFHCheckerFlag){
        outputVFHChecker();
     }

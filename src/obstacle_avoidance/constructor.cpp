@@ -10,7 +10,7 @@ obstacleAvoidance::obstacleAvoidance()
 	sub3=nhSub1.subscribe("goalOdometry",1,&obstacleAvoidance::goalOdom_callback,this);
 	//publisher
 	//ROS_INFO("publisher define");
-    // pub= nhPub.advertise<local_navigation::ClassificationVelocityData>("classificationDataEstimateVelocity", 1);
+    pub= nhPub.advertise<geometry_msgs::Twist>("cmd_vel", 1);
 
 	//デバッグ用
 	// pubDebPcl= nhDeb.advertise<sensor_msgs::PointCloud2>("debugEstimatedVelocity", 1);
@@ -28,7 +28,7 @@ obstacleAvoidance::obstacleAvoidance()
 	//vfhクラスのパラメータ設定
 	vfh_c.set_histgram_param(angle_min,angle_max, angle_div);
 	vfh_c.set_dis_threshold(dis_th);
-	vfh_c.set_eta(eta_g, eta_theta, eta_omega);
+	vfh_c.set_eta(eta_g, eta_curAngle, eta_prevAngle);
 	//rqt_reconfigure
 	f = boost::bind(&obstacleAvoidance::configCallback, this, _1, _2);
 	server.setCallback(f);

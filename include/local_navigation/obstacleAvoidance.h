@@ -44,14 +44,14 @@ class obstacleAvoidance{
         float marginRadius;//マージン半径
         float dis_th;//距離ヒストグラムの閾値
         float k_cp, eta_cp;//交差位置に対する重み
-        float k_o, eta_o;//静止障害物に対する重み
         float k_g, eta_g;//ゴール位置への角度と目標角度に対する重み
-        float k_theta, eta_theta;//現在の角度と目標角度に対する重み
-        float k_omega, eta_omega;//現在の角速度と目標角速度に対する重み
+        float k_curAngle, eta_curAngle;//現在の角度と目標角度に対する重み
+        float k_prevAngle, eta_prevAngle;//現在の角速度と目標角速度に対する重み
         //
     	std::vector<crossPoint> crsPts;
         float goal_x, goal_y;
         float cur_angle;
+        float prev_tagAng;
         float angle_min,angle_max, angle_div;
         float cur_vel,cur_angVel;
         float dV_range, dV_div;
@@ -69,6 +69,8 @@ class obstacleAvoidance{
         bool debugFlag_crossPointChecker;
         float debugEncoderVel_r;//ロボットエンコーダ速度(右車輪)
         float debugEncoderVel_l;//ロボットエンコーダ速度(左車輪)
+        float debugCur_vel;//ロボット速度
+        float debugCur_angle_steer;//現在のロボットステアリング角度（進行方向）
         float debugCmd_vel;//ロボット目標速度
         float debugCmd_angle;//ロボット目標角度
         int debugIndexRef;//障害物番号
@@ -95,16 +97,14 @@ class obstacleAvoidance{
         float debugMarginRadius;//マージン半径
         //VFH出力チェッカー
         bool debugOutputVFHCheckerFlag;
-        float debugKo, debugEtaO;//静止障害物に対する重み
         float debugKg, debugEtaG;//ゴール位置への角度と目標角度に対する重み
-        float debugKtheta, debugEtaTheta;//現在の角度と目標角度に対する重み
-        float debugKomega, debugEtaOmega;//現在の角速度と目標角速度に対する重み
+        float debugKcurAngle, debugEtaCurAngle;//現在の角度と目標角度に対する重み
+        float debugKprevAngle, debugEtaPrevAngle;//現在の角速度と目標角速度に対する重み
         float debugGoalAng;//目標角度 
         float debugGoalPosX;//目標位置X
         float debugGoalPosY;//目標位置Y 
         float debugCurAng;//現在の角度
-        float debugCurAngVel;//角速度を取得
-        float debugControlKp;//制御用pゲイン
+        float debugPrevTagAng;//角速度を取得
         //CP-VFH出力チェッカー
         bool debugOutputCPVFHCheckerFlag;
         float debugKcp, debugEtaCp;//交差位置に対する重み
@@ -146,19 +146,19 @@ class obstacleAvoidance{
         void goalOdom_callback(const nav_msgs::Odometry::ConstPtr& msg);
         //--rqt_reconfigureからの読み込み
         void configCallback(local_navigation::obstacleAvoidanceConfig &config, uint32_t level);
+        void update_goal_position();
         //処理
-        crossPoint getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cmd_vel, float& cmd_angle);
+        crossPoint getCrossPoint(int& cp_num, std::vector<crossPoint>& crsPts, int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cur_vel, float& cmd_dV, float& cmd_dAng);
+        void getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y0, int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cur_vel, float& cur_ang, float& cmd_dV, float& cmd_ang);
         void crossPointsDetect(float& cmd_vel, float& cmd_angle);
-        void crossPointsDetect(std::vector<crossPoint>& crsPts, float& cmd_vel, float& cmd_angle);
+        void crossPointsDetect(std::vector<crossPoint>& crsPts, float& cur_vel_temp, float& cur_angle_temp, float& cmd_dV, float& cmd_dAng);
         float generalCostFunction(float& eta, float& value);
-        double costCrossPoint(crossPoint& crsPt);
         double costCrossPoint(crossPoint& crsPt, float eta_cp);
-        double getCrossPointCost(std::vector<crossPoint>& crsPts);//交差位置コスト
         double getCrossPointCost(std::vector<crossPoint>& crsPts, float eta_cp);//交差位置コスト
         bool checkSafetyObstacle(float& t, float& angle, float& x, float& y);
         void searchProcess(float& tagVel, float& tagAng);
         void search_vel_ang(float& target_vel, float& target_angle);        
-        float vfh_angleSearch(float& target_angle);//return cost
+        float vfh_angleSearch(float& target_angle_temp, float& cur_vel_temp, float& cmd_dV);//return cost
         void setCmdVel();
         void setCmdAngle();
         geometry_msgs::Twist controler(float& tagVel, float& tagAng);
@@ -168,7 +168,7 @@ class obstacleAvoidance{
         void setHistgramParam();
         void setHistgramData();
         // データ送信
-        void publishData();//データ送信
+        void publishData(geometry_msgs::Twist& pubData);//データ送信
         //デバッグ用のメソッド
         void debug();
         void showCrossPoints();

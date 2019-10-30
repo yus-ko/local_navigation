@@ -165,7 +165,7 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(${PROJECT_NAME}_avoid # obstacle_avoidance
+add_executable(${PROJECT_NAME}_cp_vfh # obstacle_avoidance
   src/obstacle_avoidance/constructor.cpp
   src/obstacle_avoidance/methods.cpp
   src/obstacle_avoidance/debug_main.cpp
@@ -173,10 +173,10 @@ add_executable(${PROJECT_NAME}_avoid # obstacle_avoidance
   src/obstacle_avoidance/property.cpp
 )
 
-add_dependencies(${PROJECT_NAME}_avoid ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(${PROJECT_NAME}_avoid ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME}_cp_vfh ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME}_cp_vfh ${PROJECT_NAME}_gencfg)
 
-target_link_libraries(${PROJECT_NAME}_avoid ${catkin_LIBRARIES}) # obstacle_avoidance
+target_link_libraries(${PROJECT_NAME}_cp_vfh ${catkin_LIBRARIES}) # obstacle_avoidance
 
 
 #############
