@@ -29,6 +29,12 @@ obstacleAvoidance::obstacleAvoidance()
 	vfh_c.set_histgram_param(angle_min,angle_max, angle_div);
 	vfh_c.set_dis_threshold(dis_th);
 	vfh_c.set_eta(eta_g, eta_curAngle, eta_prevAngle);
+	//--
+	// std::vector<double> histgram_dis;
+    // vfh_c.get_histgram_dis(histgram_dis);
+	// ROS_INFO_STREAM("cons : histgram_dis size: "<< histgram_dis.size());
+	// ROS_INFO_STREAM("cons : min,msc,div "<< angle_min<<","<<angle_max<<","<<angle_div);
+
 	//rqt_reconfigure
 	f = boost::bind(&obstacleAvoidance::configCallback, this, _1, _2);
 	server.setCallback(f);

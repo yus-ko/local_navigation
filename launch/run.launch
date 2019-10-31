@@ -2,28 +2,28 @@
   <!-- rqt_reconfigure -->
   <arg name="obstacleAvoidance/rqt_reconfigure" default="true"/>
   <!-- ロボットパラメータ -->
-  <arg name="obstacleAvoidance/WheelD" default="0.0025"/>
-  <arg name="obstacleAvoidance/angleMin" default="0.0025"/>
-  <arg name="obstacleAvoidance/angleMax" default="0.02"/>
-  <arg name="obstacleAvoidance/angleDiv" default="0.02"/>
+  <arg name="obstacleAvoidance/WheelD" default="0.3125"/>
+  <arg name="obstacleAvoidance/angleMin" default="45"/>
+  <arg name="obstacleAvoidance/angleMax" default="135"/>
+  <arg name="obstacleAvoidance/angleDiv" default="1.0"/>
   <!-- ゴール位置 -->
   <arg name="obstacleAvoidance/goalX" default="0.0"/>
   <arg name="obstacleAvoidance/goalY" default="6.0"/>
   <!-- vfh -->
   <!-- vfh - k -->
-  <arg name="obstacleAvoidance/marginRadius" default="0.0025"/>
-  <arg name="obstacleAvoidance/Kcp" default="0.0025"/>
-  <arg name="obstacleAvoidance/Kg" default="0.02"/>
-  <arg name="obstacleAvoidance/KcurAngle" default="0.02"/>
-  <arg name="obstacleAvoidance/KprevAngle" default="0"/>
+  <arg name="obstacleAvoidance/marginRadius" default="1.0"/>
+  <arg name="obstacleAvoidance/Kcp" default="0.5"/>
+  <arg name="obstacleAvoidance/Kg" default="0.5"/>
+  <arg name="obstacleAvoidance/KcurAngle" default="0.5"/>
+  <arg name="obstacleAvoidance/KprevAngle" default="0.5"/>
   <!-- vfh - eta -->
-  <arg name="obstacleAvoidance/EtaCp" default="5"/>
-  <arg name="obstacleAvoidance/EtaG" default="0.01"/>
-  <arg name="obstacleAvoidance/EtaCurAngle" default="0.5"/>
+  <arg name="obstacleAvoidance/EtaCp" default="1"/>
+  <arg name="obstacleAvoidance/EtaG" default="1"/>
+  <arg name="obstacleAvoidance/EtaCurAngle" default="1"/>
   <arg name="obstacleAvoidance/EtaPrevAngle" default="1"/>
   <!-- debug -->
   <arg name="obstacleAvoidance/debugType" default="1"/>
-  <arg name="robot_name"        default="robot2"/>
+  <arg name="robot_name" default="robot2"/>
   <group ns="$(arg robot_name)">
   <node pkg="local_navigation" name="local_navigation_cp_vfh" type="local_navigation_cp_vfh" output="screen">
     <!-- rqt_reconfigure -->

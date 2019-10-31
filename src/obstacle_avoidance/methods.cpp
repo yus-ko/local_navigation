@@ -44,6 +44,11 @@ void obstacleAvoidance::manage(){
 	update_goal_position();
 	//ヒストグラム作成
 	create_histgram();
+	//
+	// std::vector<double> histgram_dis;
+    // vfh_c.get_histgram_dis(histgram_dis);
+	// ROS_INFO_STREAM("histgram_dis size: "<< histgram_dis.size());
+	//
 	create_binary_histgram(robotRadius, marginRadius);
 	//探索処理
 	float tagVel, tagAng;
@@ -289,7 +294,7 @@ void obstacleAvoidance::getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y
 	// 速度
 	float Vox = twistRef.linear.x + Vrx;
 	float Voy = twistRef.linear.y + Vry;
-	ROS_INFO("Aft: Vo(x,y):(%f,%f)",Vox,Voy);
+	// ROS_INFO("Aft: Vo(x,y):(%f,%f)",Vox,Voy);
 	// 番号
 	int index = indexRef;
 	//交差位置
@@ -314,7 +319,7 @@ void obstacleAvoidance::getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y
 	float b = Xoy - a*Xox;
 	//交差位置 仮
 	// x = 0
-	ROS_INFO("%f x + %f ",a,b);
+	// ROS_INFO("%f x + %f ",a,b);
 	crsPt_x0.x = 0;
 	crsPt_x0.y = b;
 	crsPt_x0.dis = crsPt_x0.y;
@@ -416,7 +421,7 @@ geometry_msgs::Twist obstacleAvoidance::controler(float& tagVel, float& tagAng){
 }
 void obstacleAvoidance::searchProcess(float& tagVel, float& tagAng){
 	//only angle
-	float dV=0.2;
+	float dV=debugCmd_vel;
 	vfh_angleSearch(tagAng,cur_vel, dV);
 	//float& cur_vel_temp, float& cmd_dV, float& cmd_dAng)
 	//angle and vel 
@@ -431,8 +436,8 @@ float obstacleAvoidance::vfh_angleSearch(float& target_angle_temp, float& cur_ve
 	std::vector<bool> histgram_bi;
     vfh_c.get_histgram_bi(histgram_bi);
 	//
-	goal_x=0.0;
-	goal_y=6.0;
+	goal_x=debugGoalPosX;
+	goal_y=debugGoalPosY;
 	//
 	float goalAng = atan2(goal_y, goal_x)*180/M_PI;
 	//weight正規化
@@ -444,6 +449,9 @@ float obstacleAvoidance::vfh_angleSearch(float& target_angle_temp, float& cur_ve
     //コスト算出
     double min_cost = 1;
     int min_num = -1;
+	std::vector<crossPoint> min_cost_crsPts;
+	ROS_INFO("cur_vel_temp, prev_tagAng, cmd_dV:(%f,%f -- %f)",cur_vel_temp, prev_tagAng, cmd_dV);
+	// ROS_INFO_STREAM("histgram_bi.size: "<<histgram_bi.size());
     for(int i=0; i<histgram_bi.size();i++){
         if(!histgram_bi[i]){
             continue;
@@ -465,14 +473,20 @@ float obstacleAvoidance::vfh_angleSearch(float& target_angle_temp, float& cur_ve
         double prevAngCost = vfh_c.cost_prev_select_angle(ang, prev_tagAng);
         double crossCost = getCrossPointCost(crsPts,eta_cp);
         double cost = k_g * goalCost + k_curAngle * angCost + k_prevAngle * prevAngCost + k_cp*crossCost;
-        if(min_cost > cost){
+        std::cout<<i<<":"<<cost<<std::endl;
+		if(min_cost > cost){
             min_cost = cost;
             min_num = i;
+			//デバッグ用
+			// min_cost_crsPts.clear();
+			min_cost_crsPts = crsPts;
         }
     }
 	//目標角度
 	target_angle_temp = vfh_c.transform_numToAngle(min_num);
-	
+	//デバッグ関数に交差位値情報を渡す
+	ROS_INFO_STREAM("min crsPts size:" << min_cost_crsPts.size());
+	showOutPut(min_cost_crsPts, cur_vel_temp + cmd_dV, min_num);
 	return min_cost;
 }
 void obstacleAvoidance::search_vel_ang(float& target_vel, float& target_angle){
@@ -524,11 +538,14 @@ void obstacleAvoidance::create_histgram(){
 	// std::vector<double> hst;//ヒストグラム配列
 	// hst.resize( (int)((angle_max - angle_min)/angle_div) );
 	//process
+	// ROS_INFO("create_histgram");
 	for(int k =0; k < clstr.data.size(); k++){//クラスタ数
 		//静止障害物のみADD
 		if(clstr.twist[k].linear.x !=0 || clstr.twist[k].linear.y != 0){
+			std::cout<<"("<<k<<" : moving),";
 			continue;
 		}
+		std::cout<<"("<<k<<" : static),";
 		//各クラスタに含まれる点群を取得しヒストグラムを作成
 		for(int m = 0; m < clstr.data[k].pt.size(); m++){
 			float angleTemp = atan2(clstr.data[k].pt[m].y,clstr.data[k].pt[m].x)*180/M_PI;
@@ -538,5 +555,6 @@ void obstacleAvoidance::create_histgram(){
 	}
 }
 void obstacleAvoidance::create_binary_histgram(float& robotRadius, float& marginRadius){
+	// ROS_INFO("create_binary_histgram");
 	vfh_c.create_binary_histgram(robotRadius,marginRadius);
 }

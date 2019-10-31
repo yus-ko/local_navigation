@@ -172,6 +172,7 @@ class obstacleAvoidance{
         //デバッグ用のメソッド
         void debug();
         void showCrossPoints();
+        void showOutPut(std::vector<crossPoint>& crsPts, float v, int num);
         void showCostMap();
         void crossPointChecker();
         void histgramChecker();

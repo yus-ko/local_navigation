@@ -80,6 +80,109 @@ void obstacleAvoidance::showCrossPoints(){
         pubDebMarkerArray.publish( markerArray );
     }
 }
+void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int num){
+    //--sample
+    visualization_msgs::MarkerArray markerArray;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "base_link";
+    marker.header.stamp = clstr.header.stamp;
+    marker.ns = "my_namespace";
+    // marker.lifetime = ros::Duration(0.3);
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+    markerArray.markers.resize((int)crsPts.size() + (int)clstr.data.size() + 2+10);
+    int count = 0;
+    // std::cout<<"markerArray.markers.size():"<<markerArray.markers.size()<<std::endl;
+    for(int k=0; k<clstr.data.size(); k++){
+        marker.type = visualization_msgs::Marker::ARROW;
+        marker.scale.x = 0.3;//debugObstacleRadius*2+abs(clstr.twist[k].linear.y);
+        marker.scale.y = 0.1;//debugObstacleRadius*2+abs(-clstr.twist[k].linear.x);
+        marker.scale.z = 0.1;
+        // local -> rviz 
+        marker.pose.position.x = clstr.data[k].gc.y;
+        marker.pose.position.y = -clstr.data[k].gc.x;
+        marker.pose.position.z = clstr.data[k].gc.z;
+        //angle
+        double yaw = std::atan2(-clstr.twist[k].linear.x, clstr.twist[k].linear.y);
+        if(clstr.twist[k].linear.x==0 && clstr.twist[k].linear.y ==0){
+            marker.type = visualization_msgs::Marker::SPHERE;
+            marker.scale.x = 0.3;//debugObstacleRadius*2+abs(clstr.twist[k].linear.y);
+            marker.scale.y = 0.3;//debugObstacleRadius*2+abs(-clstr.twist[k].linear.x);
+            marker.scale.z = 0.5;   
+            yaw = 0;         
+        }
+        //culc Quaternion
+        marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
+        //
+        marker.id = count;
+        markerArray.markers[count++] = marker;
+        
+        marker.type = visualization_msgs::Marker::SPHERE;
+        marker.scale.x = 0.3;//debugObstacleRadius*2+abs(clstr.twist[k].linear.y);
+        marker.scale.y = 0.2;//debugObstacleRadius*2+abs(-clstr.twist[k].linear.x);
+        marker.scale.z = 0.2;
+        //position
+        //定義済みの交差位置構造体から取得
+	    marker.color.a = 1.0;
+        marker.color.r = colors[k][0];
+        marker.color.g = colors[k][1];
+        marker.color.b = colors[k][2];
+        marker.pose.position.z = 0;
+        marker.type = visualization_msgs::Marker::SPHERE;
+
+        crossPoint crsPt = crsPts[k*2];
+        std::cout<<"crsPt["<<k*2<<"]:("<<crsPts[k*2].x<<","<<crsPts[k*2].y<<","<<crsPts[k*2].t<<std::endl;
+        //危険, 安全障害物ともに同じように表示している
+        marker.pose.position.x = crsPt.y;
+        marker.pose.position.y = -crsPt.x;
+        //add Array
+        marker.id = count;
+        markerArray.markers[count++] = marker;
+
+        crsPt = crsPts[k*2+1];
+        std::cout<<"crsPt["<<k*2+1<<"]:("<<crsPts[k*2+1].x<<","<<crsPts[k*2+1].y<<","<<crsPts[k*2+1].t<<std::endl;
+        //危険, 安全障害物ともに同じように表示している
+        marker.pose.position.x = crsPt.y;
+        marker.pose.position.y = -crsPt.x;
+        //add Array
+        marker.id = count;
+        markerArray.markers[count++] = marker;
+
+    }
+    marker.pose.position.x = 0;
+    marker.pose.position.y = 0;
+    marker.pose.position.z = 0;
+    //ロボットの命令値の出力を表示
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.scale.x = 0.2;
+    marker.scale.y = 0.1;
+    marker.scale.z = 0.1;
+    marker.color.a = 1.0;
+    marker.color.r = 0;
+    marker.color.g = 255;
+    marker.color.b = 122;
+    double tagyaw = (angle_min + num * angle_div)*M_PI/180;
+    // ROS_INFO("yaw:%f",yaw);
+    marker.pose.orientation = tf::createQuaternionMsgFromYaw(tagyaw-M_PI_2);
+    marker.id = count;
+    markerArray.markers[count++] = marker;
+    //目標矢印（テキスト）
+    marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    marker.text = "v,ang:("+ std::to_string(v) +","+ std::to_string(tagyaw*180/M_PI)+")" ;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.3;
+    marker.pose.position.z = 0.5;
+    marker.id = count;
+    markerArray.markers[count++] = marker;
+
+    markerArray.markers.resize(count);
+    ROS_INFO("markerArray.markers.size():%d",(int)markerArray.markers.size());
+    if(markerArray.markers.size()){
+        pubDebMarkerArray.publish( markerArray );
+    }
+
+}
 // クロスコストマップを表示する
 void obstacleAvoidance::showCostMap(){
     //コストマップ生成のためのパラメータからコストマップをグラデーションで表現する
