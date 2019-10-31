@@ -25,7 +25,7 @@
   <arg name="obstacleAvoidance/debugType" default="1"/>
   <arg name="robot_name" default="robot2"/>
   <group ns="$(arg robot_name)">
-  <node pkg="local_navigation" name="local_navigation_cp_vfh" type="local_navigation_cp_vfh" output="screen">
+  <node pkg="local_navigation" name="local_navigation_cp_vfh" type="local_navigation_cp_vfh" output="screen" respawn="true">
     <!-- rqt_reconfigure -->
     <param name="obstacleAvoidance/rqt_reconfigure" value="$(arg obstacleAvoidance/rqt_reconfigure)"/>
     <!-- ロボットパラメータ -->

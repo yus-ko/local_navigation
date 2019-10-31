@@ -56,7 +56,7 @@ void obstacleAvoidance::showCrossPoints(){
         marker.type = visualization_msgs::Marker::SPHERE;
 
         crossPoint crsPt = crsPts[k*2];
-        std::cout<<"crsPt["<<k*2<<"]:("<<crsPts[k*2].x<<","<<crsPts[k*2].y<<","<<crsPts[k*2].t<<std::endl;
+        std::cout<<"crsPt["<<k*2<<"]:("<<crsPts[k*2].x<<","<<crsPts[k*2].y<<","<<crsPts[k*2].t<<","<<crsPts[k*2].vx<<","<<crsPts[k*2].vy<<std::endl;
         //危険, 安全障害物ともに同じように表示している
         marker.pose.position.x = crsPt.y;
         marker.pose.position.y = -crsPt.x;
@@ -65,7 +65,7 @@ void obstacleAvoidance::showCrossPoints(){
         markerArray.markers[count++] = marker;
 
         crsPt = crsPts[k*2+1];
-        std::cout<<"crsPt["<<k*2+1<<"]:("<<crsPts[k*2+1].x<<","<<crsPts[k*2+1].y<<","<<crsPts[k*2+1].t<<std::endl;
+        std::cout<<"crsPt["<<k*2+1<<"]:("<<crsPts[k*2+1].x<<","<<crsPts[k*2+1].y<<","<<crsPts[k*2+1].t<<","<<crsPts[k*2+1].vx<<","<<crsPts[k*2+1].vy<<std::endl;
         //危険, 安全障害物ともに同じように表示している
         marker.pose.position.x = crsPt.y;
         marker.pose.position.y = -crsPt.x;
@@ -131,16 +131,25 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
         marker.type = visualization_msgs::Marker::SPHERE;
 
         crossPoint crsPt = crsPts[k*2];
-        std::cout<<"crsPt["<<k*2<<"]:("<<crsPts[k*2].x<<","<<crsPts[k*2].y<<","<<crsPts[k*2].t<<std::endl;
+        if(!crsPt.safe){
+            marker.color.r =1.0;
+            marker.color.g = 0;
+            marker.color.b = 0;
+            std::cout<<"crsPt["<<k*2<<"]:("<<crsPts[k*2].x<<","<<crsPts[k*2].y<<","<<crsPts[k*2].t<<","<<crsPts[k*2].vx<<","<<crsPts[k*2].vy<<std::endl;
+        }
         //危険, 安全障害物ともに同じように表示している
         marker.pose.position.x = crsPt.y;
         marker.pose.position.y = -crsPt.x;
         //add Array
         marker.id = count;
         markerArray.markers[count++] = marker;
-
         crsPt = crsPts[k*2+1];
-        std::cout<<"crsPt["<<k*2+1<<"]:("<<crsPts[k*2+1].x<<","<<crsPts[k*2+1].y<<","<<crsPts[k*2+1].t<<std::endl;
+        if(!crsPt.safe){
+            marker.color.r =1.0;
+            marker.color.g = 0;
+            marker.color.b = 0;
+            std::cout<<"crsPt["<<k*2+1<<"]:("<<crsPts[k*2+1].x<<","<<crsPts[k*2+1].y<<","<<crsPts[k*2+1].t<<","<<crsPts[k*2+1].vx<<","<<crsPts[k*2+1].vy<<std::endl;
+        }
         //危険, 安全障害物ともに同じように表示している
         marker.pose.position.x = crsPt.y;
         marker.pose.position.y = -crsPt.x;
@@ -179,7 +188,7 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
     markerArray.markers.resize(count);
     ROS_INFO("markerArray.markers.size():%d",(int)markerArray.markers.size());
     if(markerArray.markers.size()){
-        pubDebMarkerArray.publish( markerArray );
+        pubDebBagOutput.publish( markerArray );
     }
 
 }

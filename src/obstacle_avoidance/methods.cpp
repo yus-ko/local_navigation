@@ -77,45 +77,45 @@ bool obstacleAvoidance::checkSafetyObstacle(float& t, float& angle, float& x, fl
 	//ROS_INFO("angle:%f",angle);
 	if(x > 0){
 		if(y > 0){//第1象限
-			if(angle <= -M_PI_2 && angle >= -M_PI){
+			if(angle <= M_PI_2 && angle >= 0){
+				//SAFE
+				return true;
+			}
+			else{
 				//WARNIGN
 				//ROS_INFO("Num 1 field WARNIGN");
 			}
-			else{
-				//SAFE
-				return true;
-			}
 		}
 		else{//第4象限
-			if(angle <=M_PI && angle > M_PI_2){
-				//WARNIGN					
-				//ROS_INFO("Num 4 field WARNIGN");
-			}
-			else{
+			if(angle <=-M_PI_2 && angle > -M_PI){
 				//SAFE
 				return true;
+			}
+			else{
+				//WARNIGN					
+				//ROS_INFO("Num 4 field WARNIGN");
 			}
 		}
 	}
 	else{
 		if(y > 0){//第2象限
-			if(angle >= -M_PI_2 && angle <= 0){
-				//WARNIGN		
-				//ROS_INFO("Num 2 field WARNIGN");			
+			if(angle >= M_PI_2 && angle <= M_PI){
+				//SAFE
+				return true;		
 			}
 			else{
-				//SAFE
-				return true;
+				//WARNIGN		
+				//ROS_INFO("Num 2 field WARNIGN");	
 			}
 		}
 		else{//第3象限
-			if(angle >=0 && angle < M_PI_2){
-				//WARNIGN	
-				//ROS_INFO("Num 3 field WARNIGN");				
+			if(angle >=-M_PI && angle < -M_PI_2){
+				//SAFE
+				return true;			
 			}
 			else{
-				//SAFE
-				return true;
+				//WARNIGN	
+				//ROS_INFO("Num 3 field WARNIGN");	
 			}
 		}
 	}
@@ -286,14 +286,14 @@ void obstacleAvoidance::getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y
 	//cmd_dAng は水平右をx軸, 正面をy軸とする
 	float dVrx_c = (cmd_dV+cur_vel) * cos(cmd_ang);
 	float dVry_c = (cmd_dV+cur_vel) * sin(cmd_ang);
-	// ROS_INFO("Vr(x,y):(%f,%f)",dVrx_c,dVry_c);
+	// ROS_INFO("%d,Vr(x,y):(%f,%f)",indexRef,dVrx_c,dVry_c);
 	//障害物
 	// 位置
 	float Xox = gpRef.x;
 	float Xoy = gpRef.y;
 	// 速度
-	float Vox = twistRef.linear.x + Vrx;
-	float Voy = twistRef.linear.y + Vry;
+	float Vox = twistRef.linear.x;// + Vrx;
+	float Voy = twistRef.linear.y;// + Vry;
 	// ROS_INFO("Aft: Vo(x,y):(%f,%f)",Vox,Voy);
 	// 番号
 	int index = indexRef;
@@ -447,7 +447,7 @@ float obstacleAvoidance::vfh_angleSearch(float& target_angle_temp, float& cur_ve
     k_prevAngle/=sum_weight;
     k_cp/=sum_weight;
     //コスト算出
-    double min_cost = 1;
+    double min_cost = 10000;
     int min_num = -1;
 	std::vector<crossPoint> min_cost_crsPts;
 	ROS_INFO("cur_vel_temp, prev_tagAng, cmd_dV:(%f,%f -- %f)",cur_vel_temp, prev_tagAng, cmd_dV);
@@ -462,18 +462,19 @@ float obstacleAvoidance::vfh_angleSearch(float& target_angle_temp, float& cur_ve
 		double cur_ang = 90;//正面を向いているため
 
 		//
-		float cmd_dAng = cmd_ang-cur_ang;
+		float cmd_dAng_rad = cmd_ang;//(cmd_ang-cur_ang);
+		float prev_tagAng_rad = prev_tagAng*M_PI/180;
 		//交差位置算出
         std::vector<crossPoint> crsPts;
 		//現在の進行方向はprev_tagAngの方向であると仮定
-		crossPointsDetect(crsPts, cur_vel_temp, prev_tagAng, cmd_dV, cmd_dAng);
+		crossPointsDetect(crsPts, cur_vel_temp, prev_tagAng_rad, cmd_dV, cmd_dAng_rad);
 		//コスト算出
         double goalCost = vfh_c.cost_goal_angle(ang, goalAng);
         double angCost = vfh_c.cost_current_angle(ang, cur_ang);
         double prevAngCost = vfh_c.cost_prev_select_angle(ang, prev_tagAng);
         double crossCost = getCrossPointCost(crsPts,eta_cp);
         double cost = k_g * goalCost + k_curAngle * angCost + k_prevAngle * prevAngCost + k_cp*crossCost;
-        std::cout<<i<<":"<<cost<<std::endl;
+        // std::cout<<i<<":"<<cost<<std::endl;
 		if(min_cost > cost){
             min_cost = cost;
             min_num = i;
@@ -484,8 +485,12 @@ float obstacleAvoidance::vfh_angleSearch(float& target_angle_temp, float& cur_ve
     }
 	//目標角度
 	target_angle_temp = vfh_c.transform_numToAngle(min_num);
+	if(min_cost == 1){
+		ROS_INFO_STREAM("Not found space");
+	}
 	//デバッグ関数に交差位値情報を渡す
 	ROS_INFO_STREAM("min crsPts size:" << min_cost_crsPts.size());
+	ROS_INFO_STREAM("cur_vel, dV" << cur_vel_temp <<","<< cmd_dV);
 	showOutPut(min_cost_crsPts, cur_vel_temp + cmd_dV, min_num);
 	return min_cost;
 }

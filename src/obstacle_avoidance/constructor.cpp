@@ -19,6 +19,7 @@ obstacleAvoidance::obstacleAvoidance()
 	pubDebHst = nhDeb.advertise<visualization_msgs::MarkerArray>("histgramChecker", 1);
 	pubDebOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputChecker", 1);
 	pubDebCPVFHOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputCPVFHChecker", 1);
+	pubDebBagOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputBagOutputChecker", 1);
 	//launchファイルからパラメータの読み込み
 	//ROS_INFO("setLaunchParam");
 	setLaunchParam();
