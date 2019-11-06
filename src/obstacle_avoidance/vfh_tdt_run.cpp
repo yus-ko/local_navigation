@@ -279,7 +279,7 @@ class run{
             best_node = vfhTDT.get_node(target_num);
             
             //目標角度, 速度を取得
-            target_angle = best_node.angle;//角度は算出したやつ
+            target_angle = atan2(best_node.dy,best_node.dx);//best_node.angle;//角度は算出したやつ
             target_vel = default_vel;//速度一定
         }
         geometry_msgs::Twist controler(float& tagVel, float& tagAng){
@@ -345,18 +345,18 @@ class run{
             while(ros::ok()){
                 //最小コストとなるノード番号を取得
                 int node_num = vfhTDT.get_min_cost_node();
-                ROS_INFO("get_min_cost_node");
+                // ROS_INFO("get_min_cost_node");
                 if(vfhTDT.check_search_finish()){
                     best_node_num = node_num;
-                    ROS_INFO("check_search_finish:true");
+                    // ROS_INFO("check_search_finish:true");
                     break;
                 }
-                ROS_INFO("check_search_finish:false");
+                // ROS_INFO("check_search_finish:false");
                 //最小コストノードの子ノードを作成
                 vfhTDT.debug_add_node(vfhTDT.get_node(0), debug_clstr);//先頭ノードを取得
                 //
-                ROS_INFO("debug_add_node");
-                ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
+                // ROS_INFO("debug_add_node");
+                // ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
 
             }
             //
@@ -365,7 +365,7 @@ class run{
             target_num = vfhTDT.search_node_n(best_node_num);
             ROS_INFO("search_node_n");
             //最良ノードを格納
-            best_node = vfhTDT.get_node(target_num);
+            best_node = vfhTDT.get_conbine_node(target_num);
             cost_node goalNode = vfhTDT.get_goalNode();
             ROS_INFO("get_best_node");
             std::cout<<"best_node:\n"
@@ -378,7 +378,7 @@ class run{
                 <<"\tgoal: "<<goalNode.dx-best_node.dx<<", "<<goalNode.dy-best_node.dy<<", "<<atan2(goalNode.dy-best_node.dy, goalNode.dx-best_node.dx)<<std::endl
             <<std::endl;
             //目標角度, 速度を取得
-            target_angle = best_node.angle;//角度は算出したやつ
+            target_angle = atan2(best_node.dy,best_node.dx);//best_node.angle;//角度は算出したやつ
             target_vel= default_vel;//速度一定
             ROS_INFO("v,ang:%f,%f", target_vel,target_angle*180/M_PI);
             //display node
@@ -491,7 +491,7 @@ class run{
             // marker.type = visualization_msgs::Marker::SPHERE;
             marker.action = visualization_msgs::Marker::ADD;
             int marker_size=0;
-            marker_size = (int)open_node.size()+(int)closed_node.size();
+            marker_size = (int)open_node.size()+(int)closed_node.size() + 2;
             markerArray.markers.resize(marker_size);
             ROS_INFO("Node:markerArray.markers.size():%d",(int)markerArray.markers.size());
             //
@@ -528,7 +528,7 @@ class run{
                     marker.color.g = 1.0;
                     marker.color.b = 1.0;
                 }
-                else if(i%best_node.depth== 0 ){
+                else if(i%(best_node.depth*20)!= 0 ){
                     continue;
                 }
                 marker.id = count;
@@ -555,7 +555,37 @@ class run{
                 markerArray.markers[count++] = marker;
                 
             }
-
+            //最終的な命令方向を
+            marker.scale.x = 0.2;
+            marker.color.a = 1.0;
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 0.0;
+            marker.ns =std::string("target_vec");;
+            marker.pose.position.x = 0;
+            marker.pose.position.y = 0;
+            marker.pose.position.z = 0;
+            double yaw = target_angle;
+            marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw-M_PI_2);
+            marker.id = count;
+            markerArray.markers[count++] = marker;
+            //
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 1.0;
+            marker.ns = "text";
+            marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+            marker.text = "v,ang:("+ std::to_string(target_vel) +","+ std::to_string(target_angle*180/M_PI)+")" ;
+            marker.scale.x = 0.5;
+            marker.scale.y = 0.5;
+            marker.scale.z = 0.3;
+            marker.pose.position.z =- 0.5;
+            marker.id = count;
+            markerArray.markers[count++] = marker;
+            
+            //
+            markerArray.markers.resize(count);
+            ROS_INFO("Comp:markerArray.markers.size():%d",(int)markerArray.markers.size());
             if(markerArray.markers.size()){
                 pubDebugNode.publish( markerArray );
             }   

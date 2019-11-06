@@ -109,6 +109,9 @@ class vfh_tdt : public vfh
         }
         void set_delta_step(float delta_step_tmp){
             ds = delta_step_tmp;
+            //ターゲット角度閾値も決める
+            angleThresholdMax = M_PI_2 + M_PI_4;//M_PI_2 + ds/ steer_r;
+            angleThresholdMin = M_PI_2 - M_PI_4;//M_PI_2 - ds/ steer_r;
         }
         void set_robot_param(float& robotRadius_tmp, float& steer_r_tmp){
             robotRadius = robotRadius_tmp;
@@ -161,12 +164,15 @@ class vfh_tdt : public vfh
             //先頭ノードが最小コストノード(次に子ノードを作成すべき親ノード)
             //になっているため, 先頭ノードの深さが探索最大深度であるとき
             //そのノードが最良ノードであるといえる
-            std::cout<<"openNode[0].depth:"<<openNode[0].depth<<std::endl;
-            std::cout<<"node_depth:"<<node_depth<<std::endl;
+            // std::cout<<"openNode[0].depth:"<<openNode[0].depth<<std::endl;
+            // std::cout<<"node_depth:"<<node_depth<<std::endl;
             return ( openNode[0].depth + 1 >= node_depth ? true : false);
         }
         cost_node& get_node(int Num){
             return openNode[Num];
+        }
+        cost_node& get_conbine_node(int Num){
+            return conbineNode[Num];
         }
         std::vector<cost_node>& get_open_node(){
             return openNode;
@@ -306,15 +312,29 @@ class vfh_tdt : public vfh
             for(int k=0; k<nextNodeIndex.size();k++){
                 //条件に合うノードまで進める
                 int nodeNum = nextNodeIndex[k];
+                //
+                std::cout<<"to node "<<nodeNum <<":"<<std::endl
+                    <<"\tparent: "<<conbineNode[nodeNum].parent_node<<std::endl
+                    <<"\tnum: "<<conbineNode[nodeNum].num<<std::endl
+                    <<"\tdepth: "<<conbineNode[nodeNum].depth<<std::endl
+                    <<"\tdx,dy: "<<conbineNode[nodeNum].dx<<","<<conbineNode[nodeNum].dy<<std::endl
+                    <<"\tv,ang: "<<conbineNode[nodeNum].v<<","<<conbineNode[nodeNum].angle<<std::endl
+                    <<"\tangT,angD: "<<conbineNode[nodeNum].target_angle<<","<<conbineNode[nodeNum].delta_angle<<std::endl
+                    <<"\tcost: "<<conbineNode[nodeNum].cost<<std::endl
+                    <<"\tgoal: "<<goalNode.dx-conbineNode[nodeNum].dx<<", "<<goalNode.dy-conbineNode[nodeNum].dy<<", "<<atan2(goalNode.dy-conbineNode[nodeNum].dy, goalNode.dx-conbineNode[nodeNum].dx)<<std::endl
+                <<std::endl;
+                //
                 //条件を超える角度の時
                 if(conbineNode[nodeNum].angle > angleThresholdMax || conbineNode[nodeNum].angle < angleThresholdMin){
                     selectNodeNum = conbineNode[nodeNum].parent_node;//1つ前のノードがベスト
                     //探索終了
+                    ROS_INFO("inIf selectNodeNum:%d",selectNodeNum);
                     return selectNodeNum;
                 }
             }
             //最後のノードまで条件を超えなかった時
-            selectNodeNum = (int)nextNodeIndex.size() - 1;//
+            selectNodeNum = conbineNode[nextNodeIndex[(int)nextNodeIndex.size() - 1]].num;//
+            ROS_INFO("selectNodeNum:%d",selectNodeNum);
             return selectNodeNum;            
         }
         //protected vfh class method
@@ -381,8 +401,6 @@ class vfh_tdt : public vfh
             double goal_cost = cost_goal_angle(tagAng, parent_node.angle + cur_target_delta_angle, goalAng);
             double ang_cost = cost_current_angle_rad(tagAng, parent_node.angle);
             double prevAng_cost = cost_prev_select_angle_rad(cur_target_delta_angle, parent_node.delta_angle);
-            // std::cout<<goal_cost<<" = cost_goal_angle("<<tagAng<<","<< parent_node.angle <<"+"<< cur_target_delta_angle<<"," <<goalAng<<");"<<std::endl;
-            // std::cout<<"cost="<<lamda_array[parent_node.depth+1]<<"*"<<k1<<"*"<<goal_cost<< "+"<< k2<<"*"<<ang_cost<< "+" <<k3<<"*"<<prevAng_cost<<std::endl;
             double cost = lamda_array[parent_node.depth+1]*( k1*goal_cost + k2*ang_cost + k3*prevAng_cost );
             return cost;
         }
@@ -409,6 +427,9 @@ class vfh_tdt : public vfh
             openNode.clear();
             closedNode.clear();
             conbineNode.clear();
+            // openNode.reserve(100000);
+            // closedNode.reserve(100000);
+            // conbineNode.reserve(100000);
         }
         //get
         int get_open_node_size(){
@@ -420,22 +441,22 @@ class vfh_tdt : public vfh
         //デバッグ
         void debug_add_node(cost_node parent_node, local_navigation::ClassificationVelocityData &debug_clstr){
             //距離ヒストグラムを作成
-            std::cout<<"parent_node:\n"
-                <<"\tnum: "<<parent_node.num<<std::endl
-                <<"\tdepth: "<<parent_node.depth<<std::endl
-                <<"\tdx,dy: "<<parent_node.dx<<","<<parent_node.dy<<std::endl
-                <<"\tv,ang: "<<parent_node.v<<","<<parent_node.angle<<std::endl
-                <<"\tangT,angD: "<<parent_node.target_angle<<","<<parent_node.delta_angle<<std::endl
-                <<"\tds,cost: "<<ds<<","<<parent_node.cost<<std::endl
-                <<"\tgoal: "<<goalNode.dx-parent_node.dx<<", "<<goalNode.dy-parent_node.dy<<", "<<atan2(goalNode.dy-parent_node.dy, goalNode.dx-parent_node.dx)<<std::endl
-            <<std::endl;
+            // std::cout<<"parent_node:\n"
+            //     <<"\tnum: "<<parent_node.num<<std::endl
+            //     <<"\tdepth: "<<parent_node.depth<<std::endl
+            //     <<"\tdx,dy: "<<parent_node.dx<<","<<parent_node.dy<<std::endl
+            //     <<"\tv,ang: "<<parent_node.v<<","<<parent_node.angle<<std::endl
+            //     <<"\tangT,angD: "<<parent_node.target_angle<<","<<parent_node.delta_angle<<std::endl
+            //     <<"\tds,cost: "<<ds<<","<<parent_node.cost<<std::endl
+            //     <<"\tgoal: "<<goalNode.dx-parent_node.dx<<", "<<goalNode.dy-parent_node.dy<<", "<<atan2(goalNode.dy-parent_node.dy, goalNode.dx-parent_node.dx)<<std::endl
+            // <<std::endl;
             // create_histgram_dis(parent_node);
             //バイナリヒストグラムを作成
             // create_binary_histgram(float& robotRadius, float& marginRadius);
             debug_create_binary_histgram(parent_node, robotRadius, marginRadius,debug_clstr);
             // std::vector<bool> hst_bi;
             // get_histgram_bi(hst_bi);
-            //code
+            // code
             for(int k=0; k<hst_bi.size();k++){
                 if(!hst_bi[k]){
                     continue;
@@ -461,9 +482,9 @@ class vfh_tdt : public vfh
                 node_temp.target_angle = target_angle;
                 node_temp.delta_angle = delta_angle;
                 node_temp.cost = parent_node.cost + lamda_array[node_temp.depth] * cost + huristic_function(parent_node,node_temp,goal_angle);
-                if(k%10==0){
-                    std::cout<<"d="<<node_temp.depth<<" "<<parent_node.num<<" -> "<<delta_angle<<": "<<parent_node.cost <<"+"<< cost<<"+"<<huristic_function(parent_node,node_temp,goal_angle)<<std::endl;
-                }
+                // if(k%10==0){
+                //     std::cout<<"d="<<node_temp.depth<<" "<<parent_node.num<<" -> "<<delta_angle<<": "<<parent_node.cost <<"+"<< cost<<"+"<<huristic_function(parent_node,node_temp,goal_angle)<<std::endl;
+                // }
                 //オープンノードリストに追加
                 openNode.emplace_back(node_temp);
             }

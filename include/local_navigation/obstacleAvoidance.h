@@ -100,7 +100,7 @@ class obstacleAvoidance{
         float debugKg, debugEtaG;//ゴール位置への角度と目標角度に対する重み
         float debugKcurAngle, debugEtaCurAngle;//現在の角度と目標角度に対する重み
         float debugKprevAngle, debugEtaPrevAngle;//現在の角速度と目標角速度に対する重み
-        float debugGoalAng;//目標角度 
+        float debugGoalAng;//目標角度
         float debugGoalPosX;//目標位置X
         float debugGoalPosY;//目標位置Y 
         float debugCurAng;//現在の角度
