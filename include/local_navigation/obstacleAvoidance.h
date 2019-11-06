@@ -117,6 +117,8 @@ class obstacleAvoidance{
         float debugObstacleSizeThreshold;
         geometry_msgs::Point debugGp1,debugGp2,debugGp3;//クラスタ重心
         geometry_msgs::Twist debugTwist1,debugTwist2,debugTwist3;//障害物速度
+        //交差位値表示
+        bool display_output;
         //--rqt_reconfigure
         bool rqt_reconfigure;//rqt_reconfigureを使用するか
         dynamic_reconfigure::Server<local_navigation::obstacleAvoidanceConfig> server;

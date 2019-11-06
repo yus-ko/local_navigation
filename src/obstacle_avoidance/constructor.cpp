@@ -20,21 +20,16 @@ obstacleAvoidance::obstacleAvoidance()
 	pubDebOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputChecker", 1);
 	pubDebCPVFHOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputCPVFHChecker", 1);
 	pubDebBagOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputBagOutputChecker", 1);
+
 	//launchファイルからパラメータの読み込み
-	//ROS_INFO("setLaunchParam");
 	setLaunchParam();
 	//クロスポイントチェッカーデフォルト値入力
 	setDefaultCrossPointChecker();
-	//
+
 	//vfhクラスのパラメータ設定
 	vfh_c.set_histgram_param(angle_min,angle_max, angle_div);
 	vfh_c.set_dis_threshold(dis_th);
 	vfh_c.set_eta(eta_g, eta_curAngle, eta_prevAngle);
-	//--
-	// std::vector<double> histgram_dis;
-    // vfh_c.get_histgram_dis(histgram_dis);
-	// ROS_INFO_STREAM("cons : histgram_dis size: "<< histgram_dis.size());
-	// ROS_INFO_STREAM("cons : min,msc,div "<< angle_min<<","<<angle_max<<","<<angle_div);
 
 	//rqt_reconfigure
 	f = boost::bind(&obstacleAvoidance::configCallback, this, _1, _2);

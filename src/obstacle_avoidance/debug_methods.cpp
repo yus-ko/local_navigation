@@ -16,7 +16,7 @@ void obstacleAvoidance::showCrossPoints(){
     marker.header.frame_id = "base_link";
     marker.header.stamp = clstr.header.stamp;
     marker.ns = "my_namespace";
-    // marker.lifetime = ros::Duration(0.3);
+    marker.lifetime = ros::Duration(0.3);
     marker.type = visualization_msgs::Marker::ARROW;
     marker.action = visualization_msgs::Marker::ADD;
     markerArray.markers.resize((int)clstr.data.size() * 3);
@@ -25,7 +25,8 @@ void obstacleAvoidance::showCrossPoints(){
     std::vector<crossPoint> crsPts;
 	crsPts.resize((int)clstr.data.size()*2);
     ROS_INFO("cur,cmd,ang : %f,%f,%f",debugCur_vel,debugCmd_vel,debugCmd_angle );
-	crossPointsDetect(crsPts,debugCur_vel, debugCur_angle_steer, debugCmd_vel,debugCmd_angle);//rqt_reconfiureの値を使用
+	// ROS_INFO_STREAM("in debug"<<":"<<debugCur_vel<<", "<<debugCur_angle_steer<<", "<<debugCmd_vel<<", "<<debugCmd_angle);
+    crossPointsDetect(crsPts,debugCur_vel, debugCur_angle_steer, debugCmd_vel,debugCmd_angle);//rqt_reconfiureの値を使用
     
     for(int k=0; k<clstr.data.size(); k++){
         ROS_INFO("obst X(x,y), v(x,y) : X(%f,%f),v(%f,%f)",clstr.data[k].gc.x, clstr.data[k].gc.y, clstr.twist[k].linear.x,clstr.twist[k].linear.y );
@@ -54,9 +55,9 @@ void obstacleAvoidance::showCrossPoints(){
         marker.color.b = colors[k][2];
         marker.pose.position.z = 0;
         marker.type = visualization_msgs::Marker::SPHERE;
-
+        
         crossPoint crsPt = crsPts[k*2];
-        std::cout<<"crsPt["<<k*2<<"]:("<<crsPts[k*2].x<<","<<crsPts[k*2].y<<","<<crsPts[k*2].t<<","<<crsPts[k*2].vx<<","<<crsPts[k*2].vy<<std::endl;
+        std::cout<<"crsPt["<<k*2<<"]:("<<crsPts[k*2].x<<","<<crsPts[k*2].y<<","<<crsPts[k*2].t<<","<<crsPts[k*2].vx<<","<<crsPts[k*2].vy<<","<<crsPts[k*2].safe<<std::endl;
         //危険, 安全障害物ともに同じように表示している
         marker.pose.position.x = crsPt.y;
         marker.pose.position.y = -crsPt.x;
@@ -65,14 +66,14 @@ void obstacleAvoidance::showCrossPoints(){
         markerArray.markers[count++] = marker;
 
         crsPt = crsPts[k*2+1];
-        std::cout<<"crsPt["<<k*2+1<<"]:("<<crsPts[k*2+1].x<<","<<crsPts[k*2+1].y<<","<<crsPts[k*2+1].t<<","<<crsPts[k*2+1].vx<<","<<crsPts[k*2+1].vy<<std::endl;
+        std::cout<<"crsPt["<<k*2+1<<"]:("<<crsPts[k*2+1].x<<","<<crsPts[k*2+1].y<<","<<crsPts[k*2+1].t<<","<<crsPts[k*2+1].vx<<","<<crsPts[k*2+1].vy<<","<<crsPts[k*2+1].safe<<std::endl;
         //危険, 安全障害物ともに同じように表示している
         marker.pose.position.x = crsPt.y;
         marker.pose.position.y = -crsPt.x;
         //add Array
         marker.id = count;
         markerArray.markers[count++] = marker;
-
+        
     }
     markerArray.markers.resize(count);
     ROS_INFO("markerArray.markers.size():%d",(int)markerArray.markers.size());
@@ -80,6 +81,7 @@ void obstacleAvoidance::showCrossPoints(){
         pubDebMarkerArray.publish( markerArray );
     }
 }
+//出力と交差位置の表示
 void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int num){
     //--sample
     visualization_msgs::MarkerArray markerArray;
@@ -87,16 +89,16 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
     marker.header.frame_id = "base_link";
     marker.header.stamp = clstr.header.stamp;
     marker.ns = "my_namespace";
-    // marker.lifetime = ros::Duration(0.3);
+    marker.lifetime = ros::Duration(0.3);
     marker.type = visualization_msgs::Marker::ARROW;
     marker.action = visualization_msgs::Marker::ADD;
     markerArray.markers.resize((int)crsPts.size() + (int)clstr.data.size() + 2+10);
     int count = 0;
-    // std::cout<<"markerArray.markers.size():"<<markerArray.markers.size()<<std::endl;
     for(int k=0; k<clstr.data.size(); k++){
+        marker.ns = "obstacle_vec";
         marker.type = visualization_msgs::Marker::ARROW;
-        marker.scale.x = 0.3;//debugObstacleRadius*2+abs(clstr.twist[k].linear.y);
-        marker.scale.y = 0.1;//debugObstacleRadius*2+abs(-clstr.twist[k].linear.x);
+        marker.scale.x = 0.3;
+        marker.scale.y = 0.1;
         marker.scale.z = 0.1;
         // local -> rviz 
         marker.pose.position.x = clstr.data[k].gc.y;
@@ -106,30 +108,33 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
         double yaw = std::atan2(-clstr.twist[k].linear.x, clstr.twist[k].linear.y);
         if(clstr.twist[k].linear.x==0 && clstr.twist[k].linear.y ==0){
             marker.type = visualization_msgs::Marker::SPHERE;
-            marker.scale.x = 0.3;//debugObstacleRadius*2+abs(clstr.twist[k].linear.y);
-            marker.scale.y = 0.3;//debugObstacleRadius*2+abs(-clstr.twist[k].linear.x);
+            marker.scale.x = 0.3;
+            marker.scale.y = 0.3;
             marker.scale.z = 0.5;   
-            yaw = 0;         
+            yaw = 0;
         }
         //culc Quaternion
         marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
         //
         marker.id = count;
         markerArray.markers[count++] = marker;
-        
+        marker.ns = "obstacle_pos";
         marker.type = visualization_msgs::Marker::SPHERE;
         marker.scale.x = 0.3;//debugObstacleRadius*2+abs(clstr.twist[k].linear.y);
         marker.scale.y = 0.2;//debugObstacleRadius*2+abs(-clstr.twist[k].linear.x);
         marker.scale.z = 0.2;
         //position
         //定義済みの交差位置構造体から取得
+        if((int)crsPts.size() == 0){
+            continue;
+        }
 	    marker.color.a = 1.0;
         marker.color.r = colors[k][0];
         marker.color.g = colors[k][1];
         marker.color.b = colors[k][2];
         marker.pose.position.z = 0;
         marker.type = visualization_msgs::Marker::SPHERE;
-
+        marker.ns = "cross_points";
         crossPoint crsPt = crsPts[k*2];
         if(!crsPt.safe){
             marker.color.r =1.0;
@@ -158,6 +163,7 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
         markerArray.markers[count++] = marker;
 
     }
+    marker.ns = "robot";
     marker.pose.position.x = 0;
     marker.pose.position.y = 0;
     marker.pose.position.z = 0;
@@ -176,6 +182,7 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
     marker.id = count;
     markerArray.markers[count++] = marker;
     //目標矢印（テキスト）
+    marker.ns = "text";
     marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
     marker.text = "v,ang:("+ std::to_string(v) +","+ std::to_string(tagyaw*180/M_PI)+")" ;
     marker.scale.x = 0.5;
@@ -184,9 +191,8 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
     marker.pose.position.z = 0.5;
     marker.id = count;
     markerArray.markers[count++] = marker;
-
+    //
     markerArray.markers.resize(count);
-    ROS_INFO("markerArray.markers.size():%d",(int)markerArray.markers.size());
     if(markerArray.markers.size()){
         pubDebBagOutput.publish( markerArray );
     }
@@ -228,11 +234,11 @@ void obstacleAvoidance::crossPointChecker(){
     int num=0;
     //実際の環境下では相対ベクトルが得られるため
     geometry_msgs::Twist relation_vel = debugTwistRef;
-    ROS_INFO("Origin: Vo(%f,%f)",debugTwistRef.linear.x,debugTwistRef.linear.y);
+    // ROS_INFO("Origin: Vo(%f,%f)",debugTwistRef.linear.x,debugTwistRef.linear.y);
     relation_vel.linear.x -= debugCur_vel * cos(debugCur_angle_steer);
     relation_vel.linear.y -= debugCur_vel * sin(debugCur_angle_steer);
-    ROS_INFO("Relation: Vo(%f,%f)",relation_vel.linear.x,relation_vel.linear.y);
-    std::vector<crossPoint> crsPtTemp;
+    // ROS_INFO("Relation: Vo(%f,%f)",relation_vel.linear.x,relation_vel.linear.y);
+             std::vector<crossPoint> crsPtTemp;
     crsPtTemp.resize(2);
     getCrossPoints(crsPtTemp[0],crsPtTemp[1], debugIndexRef, debugGpRef,relation_vel,debugCur_vel,debugCur_angle_steer, debugCmd_vel,debugCmd_angle);
 
@@ -542,9 +548,9 @@ void obstacleAvoidance::outputVFHChecker(){
         }
         
 
-        double goalCost = vfh_check.cost_goal_angle(ang, debugGoalAng);
-        double angCost = vfh_check.cost_current_angle(ang, debugCurAng);
-        double prevAngCost = vfh_check.cost_prev_select_angle(ang, debugPrevTagAng);
+        double goalCost = vfh_check.cost_goal_angle_deg(ang, debugGoalAng);
+        double angCost = vfh_check.cost_current_angle_deg(ang, debugCurAng);
+        double prevAngCost = vfh_check.cost_prev_select_angle_deg(ang, debugPrevTagAng);
         double cost = debugKg * goalCost + debugKcurAngle * angCost + debugKprevAngle * prevAngCost;
         if(min_cost > cost){
             min_cost = cost;
@@ -617,9 +623,9 @@ void obstacleAvoidance::outputVFHChecker(){
         }
         
 
-        float goalCost = vfh_check.cost_goal_angle(ang, debugGoalAng);
-        float angCost = vfh_check.cost_current_angle(ang, debugCurAng);
-        float prevAngCost = vfh_check.cost_prev_select_angle(ang, debugPrevTagAng);
+        float goalCost = vfh_check.cost_goal_angle_deg(ang, debugGoalAng);
+        float angCost = vfh_check.cost_current_angle_deg(ang, debugCurAng);
+        float prevAngCost = vfh_check.cost_prev_select_angle_deg(ang, debugPrevTagAng);
         double cost = debugKg * goalCost + debugKcurAngle * angCost + debugKprevAngle * prevAngCost;
         
         marker.color.r = ((int)(goalCost/max_cost*255))*debugKg;
@@ -792,9 +798,9 @@ void obstacleAvoidance::outputCrossPointVFHChecker(){
         }
         debugCrsPts.resize(num);
         //
-        double goalCost = vfh_check.cost_goal_angle(ang, debugGoalAng);
-        double angCost = vfh_check.cost_current_angle(ang, debugCurAng);
-        double prevAngCost = vfh_check.cost_prev_select_angle(ang, debugPrevTagAng);
+        double goalCost = vfh_check.cost_goal_angle_deg(ang, debugGoalAng);
+        double angCost = vfh_check.cost_current_angle_deg(ang, debugCurAng);
+        double prevAngCost = vfh_check.cost_prev_select_angle_deg(ang, debugPrevTagAng);
         double crossCost = getCrossPointCost(debugCrsPts,debugEtaCp);
         double cost = debugKg * goalCost + debugKcurAngle * angCost + debugKprevAngle * prevAngCost + debugKcp*crossCost;
         if(min_cost > cost){
@@ -849,9 +855,9 @@ void obstacleAvoidance::outputCrossPointVFHChecker(){
         }
         debugCrsPts.resize(num);
         //
-        double goalCost = vfh_check.cost_goal_angle(ang, debugGoalAng);
-        double angCost = vfh_check.cost_current_angle(ang, debugCurAng);
-        double prevAngCost = vfh_check.cost_prev_select_angle(ang, debugPrevTagAng);
+        double goalCost = vfh_check.cost_goal_angle_deg(ang, debugGoalAng);
+        double angCost = vfh_check.cost_current_angle_deg(ang, debugCurAng);
+        double prevAngCost = vfh_check.cost_prev_select_angle_deg(ang, debugPrevTagAng);
         double crossCost = getCrossPointCost(debugCrsPts, debugEtaCp);
         double cost = debugKg * goalCost + debugKcurAngle * angCost + debugKprevAngle * prevAngCost + debugKcp*crossCost;
         // std::cout<< i<<": " <<debugKg * goalCost<<", "<<debugKcurAngle* angCost <<", "<<debugKprevAngle * prevAngCost<<","<<debugKcp*crossCost<<std::endl;

@@ -102,6 +102,8 @@ generate_messages(
 # configファイルを追加
 generate_dynamic_reconfigure_options(
   cfg/obstacleAvoidance.cfg
+  cfg/vfh_tdt.cfg
+  # cfg/DynReconf2.cfg
   # cfg/DynReconf2.cfg
 )
 
@@ -178,6 +180,14 @@ add_dependencies(${PROJECT_NAME}_cp_vfh ${PROJECT_NAME}_gencfg)
 
 target_link_libraries(${PROJECT_NAME}_cp_vfh ${catkin_LIBRARIES}) # obstacle_avoidance
 
+
+add_executable(${PROJECT_NAME}_vfh_tdt # obstacle_avoidance
+  src/obstacle_avoidance/vfh_tdt_run.cpp
+)
+
+add_dependencies(${PROJECT_NAME}_vfh_tdt ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME}_vfh_tdt ${PROJECT_NAME}_gencfg)
+target_link_libraries(${PROJECT_NAME}_vfh_tdt ${catkin_LIBRARIES}) 
 
 #############
 ## Install ##

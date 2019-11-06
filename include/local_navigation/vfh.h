@@ -114,11 +114,25 @@ class vfh{
                 }
             }
         }
-        float min_dif_angle(const float& angle1, const float& angle2){
+        float min_dif_angle_rad(const float& angle1, const float& angle2){
             float dif_angle_temp = angle1 - angle2;
-            float dif_angle_p360 = abs(dif_angle_temp + 360);
-            float dif_angle_n360 = abs(dif_angle_temp - 360);
-            float dif_angle = abs(dif_angle_temp);
+            float dif_angle_p360 = std::abs(dif_angle_temp + 2*M_PI);
+            float dif_angle_n360 = std::abs(dif_angle_temp - 2*M_PI);
+            float dif_angle = std::abs(dif_angle_temp);
+            float min_angle = dif_angle;
+            if(min_angle > dif_angle_p360){
+                min_angle = dif_angle_p360;
+            }
+            if(min_angle > dif_angle_n360){
+                min_angle = dif_angle_n360;
+            }
+            return min_angle;
+        }
+        float min_dif_angle_deg(const float& angle1, const float& angle2){
+            float dif_angle_temp = angle1 - angle2;
+            float dif_angle_p360 = std::abs(dif_angle_temp + 360);
+            float dif_angle_n360 = std::abs(dif_angle_temp - 360);
+            float dif_angle = std::abs(dif_angle_temp);
             float min_angle = dif_angle;
             if(min_angle > dif_angle_p360){
                 min_angle = dif_angle_p360;
@@ -129,27 +143,50 @@ class vfh{
             return min_angle;
         }
         //cost function 
-        virtual double angleCostFunction(float& eta, float value){
+        virtual double angleCostFunction_deg(float& eta, float value){
             return (pow(value/180.0/eta,2.0));
             // return (value/180.0/eta);
         }
-        double cost_goal_angle(const float& angle, float goal_angle){
-            float dif_angle = min_dif_angle(angle,goal_angle);
-            return angleCostFunction(eta_goal, dif_angle);
+        double cost_goal_angle_deg(const float& angle, float goal_angle){
+            float dif_angle = min_dif_angle_deg(angle,goal_angle);
+            return angleCostFunction_deg(eta_goal, dif_angle);
         }
-        double cost_current_angle(const float& angle, const float& cur_angle){
-            float dif_angle = min_dif_angle(angle, cur_angle);
-            return angleCostFunction(eta_curAngle, dif_angle);
+        double cost_current_angle_deg(const float& angle, const float& cur_angle){
+            float dif_angle = min_dif_angle_deg(angle, cur_angle);
+            return angleCostFunction_deg(eta_curAngle, dif_angle);
         }
-        double cost_prev_select_angle(const float& angle, const float& pre_target_angle){
-            float dif_angle = min_dif_angle(angle, pre_target_angle);
-            return angleCostFunction(eta_prevAngle, dif_angle);
+        double cost_prev_select_angle_deg(const float& angle, const float& pre_target_angle){
+            float dif_angle = min_dif_angle_deg(angle, pre_target_angle);
+            return angleCostFunction_deg(eta_prevAngle, dif_angle);
+        }
+        virtual double angleCostFunction_rad(float& eta, float value){
+            return (pow(value/eta,2.0));
+            // return (value/180.0/eta);
+        }
+        double cost_goal_angle_rad(const float& angle, float goal_angle){
+            float dif_angle = min_dif_angle_rad(angle,goal_angle);
+            return angleCostFunction_rad(eta_goal, dif_angle);
+        }
+        double cost_current_angle_rad(const float& angle, const float& cur_angle){
+            float dif_angle = min_dif_angle_rad(angle, cur_angle);
+            return angleCostFunction_rad(eta_curAngle, dif_angle);
+        }
+        double cost_prev_select_angle_rad(const float& angle, const float& pre_target_angle){
+            float dif_angle = min_dif_angle_rad(angle, pre_target_angle);
+            return angleCostFunction_rad(eta_prevAngle, dif_angle);
         }
         //
-        double getCost(float tagAng, float goalAng, float curAng, float prevTagAng){//to vfh class
-            double goal_cost = cost_goal_angle(tagAng, goalAng);
-            double ang_cost = cost_current_angle(tagAng, curAng);
-            double prevAng_cost = cost_prev_select_angle(tagAng, prevTagAng);
+        double getCost_deg(float tagAng, float goalAng, float curAng, float prevTagAng){//to vfh class
+            double goal_cost = cost_goal_angle_deg(tagAng, goalAng);
+            double ang_cost = cost_current_angle_deg(tagAng, curAng);
+            double prevAng_cost = cost_prev_select_angle_deg(tagAng, prevTagAng);
+            double cost = k_goal*goal_cost + k_curAngle*ang_cost + k_prevAngle*prevAng_cost;
+            return (cost);
+        }
+        double getCost_rad(float tagAng, float goalAng, float curAng, float prevTagAng){//to vfh class
+            double goal_cost = cost_goal_angle_rad(tagAng, goalAng);
+            double ang_cost = cost_current_angle_rad(tagAng, curAng);
+            double prevAng_cost = cost_prev_select_angle_rad(tagAng, prevTagAng);
             double cost = k_goal*goal_cost + k_curAngle*ang_cost + k_prevAngle*prevAng_cost;
             return (cost);
         }

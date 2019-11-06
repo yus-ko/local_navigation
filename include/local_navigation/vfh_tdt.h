@@ -1,12 +1,12 @@
 //多重インクルード防止
 #ifndef INCLUDE_VFH_TDT_CLASS
 #define INCLUDE_VFH_TDT_CLASS
-#include<vfh.h>
+#include<local_navigation/vfh.h>
 #include <local_navigation/ClassificationVelocityData.h>
 struct cost_node{
     int num;//ノード番号
     int parent_node;//親ノード
-    float depth;//ノードの深さ
+    int depth;//ノードの深さ
     float dx;//始点ノードからの移動距離x
     float dy;//始点ノードからの移動距離y
     float target_angle;//目標角度
@@ -25,7 +25,6 @@ class vfh_tdt : public vfh
         float angleThresholdMin;
         float angleThresholdMax;
         float ds;//１ステップの距離: 1ステップの経過時間 ts = ds/ロボットの速度
-        float steer_r;//ロボットの最小ステアリング半径
         float initVel;//初期速度
         float time_range;//探索を行う最大時間
         int node_depth;//ノードの深さ
@@ -55,14 +54,15 @@ class vfh_tdt : public vfh
         vfh_tdt(float& k1_tmp, float& k2_tmp, float& k3_tmp, 
             float& eta1_tmp, float& eta2_tmp, float& eta3_tmp,
             float& angle_min_tmp, float& angle_max_tmp, float& angle_div_tmp,
-            float& distance_threshold_tmp,
-            float& steer_r_tmp
+            float& distance_threshold_tmp,float& steer_r_tmp,
+            float& robotRadius_tmp, float& marginRadius_tmp
             ){
                 setup_vfh_tdt_param(
                     k1_tmp, k2_tmp, k3_tmp, 
                     eta1_tmp, eta2_tmp, eta3_tmp,
                     angle_min_tmp, angle_max_tmp, angle_div_tmp,
-                    distance_threshold_tmp, steer_r_tmp
+                    distance_threshold_tmp, steer_r_tmp,
+                    robotRadius_tmp, marginRadius_tmp
                 );
         }
         ~vfh_tdt(){
@@ -72,7 +72,8 @@ class vfh_tdt : public vfh
             float& k1_tmp, float& k2_tmp, float& k3_tmp, 
             float& eta1_tmp, float& eta2_tmp, float& eta3_tmp,
             float& angle_min_tmp, float& angle_max_tmp, float& angle_div_tmp,
-            float& distance_threshold_tmp, float& marginRadius_tmp
+            float& distance_threshold_tmp, float& steer_r_tmp,
+            float& robotRadius_tmp, float& marginRadius_tmp
             ){
 
             k1 = k1_tmp;
@@ -86,6 +87,7 @@ class vfh_tdt : public vfh
             angle_div = angle_div_tmp;
             distance_threshold = distance_threshold_tmp;
             marginRadius = marginRadius_tmp;
+            set_robot_param(robotRadius_tmp,steer_r_tmp);
             set_k(k1,k2,k3);
             set_eta(eta1,eta2,eta3);
             set_histgram_param(angle_min, angle_max, angle_div);
@@ -93,12 +95,20 @@ class vfh_tdt : public vfh
             // steer_r = 0.31425;
 
         }
-        void set_lamda(){
+        void set_lamda(int node_depth_tmp){
+            node_depth = node_depth_tmp;
             lamda_array.resize(node_depth);
             for(int k=0;k<lamda_array.size();k++){
                 //線形
-                lamda_array[k] = - k * 1.0/( (float)lamda_array.size()) + 1;  
+                lamda_array[k] =1 - k * 1.0/( (float)lamda_array.size()) ;  
+                // std::cout<<"lamda_array["<<k<<"] = "<<lamda_array[k]<<std::endl;
             }
+        }
+        void set_initial_velocity(float init_vel_tmp){
+            initVel = init_vel_tmp;
+        }
+        void set_delta_step(float delta_step_tmp){
+            ds = delta_step_tmp;
         }
         void set_robot_param(float& robotRadius_tmp, float& steer_r_tmp){
             robotRadius = robotRadius_tmp;
@@ -133,7 +143,7 @@ class vfh_tdt : public vfh
         }
         void add_start_node(){
             openNode.emplace_back(startNode);
-            node_size++;
+            node_size = 1;
         }
         int get_min_cost_node(){
             int n;
@@ -151,11 +161,26 @@ class vfh_tdt : public vfh
             //先頭ノードが最小コストノード(次に子ノードを作成すべき親ノード)
             //になっているため, 先頭ノードの深さが探索最大深度であるとき
             //そのノードが最良ノードであるといえる
-            return ( openNode[0].depth + 1 <= node_depth ? true : false);
+            std::cout<<"openNode[0].depth:"<<openNode[0].depth<<std::endl;
+            std::cout<<"node_depth:"<<node_depth<<std::endl;
+            return ( openNode[0].depth + 1 >= node_depth ? true : false);
         }
         cost_node& get_node(int Num){
             return openNode[Num];
         }
+        std::vector<cost_node>& get_open_node(){
+            return openNode;
+        }
+        std::vector<cost_node>& get_closed_node(){
+            return closedNode;
+        }
+        std::vector<cost_node>& get_conbine_node(){
+            return conbineNode;
+        }
+        cost_node& get_goalNode(){
+            return goalNode;
+        }
+        
         void add_node(cost_node& parent_node){
             //距離ヒストグラムを作成
             // create_histgram_dis(parent_node);
@@ -167,7 +192,7 @@ class vfh_tdt : public vfh
             //code
             for(int k=0; k<hst_bi.size();k++){
                 //深さゼロでのロボット座標
-                float goal_angle = atan2(goalNode.y-parent_node.dy, goalNode.x-parent_node.dx);
+                float goal_angle = atan2(goalNode.dy-parent_node.dy, goalNode.dx-parent_node.dx);
                 //vfhコスト算出
                 float target_angle = transform_numToAngle(k);//深さnでのロボット座標系
                 float delta_angle = transform_angleFromCenter(target_angle);
@@ -185,7 +210,7 @@ class vfh_tdt : public vfh
                 node_temp.dy = parent_node.dy + parent_node.v*sin(parent_node.angle + delta_angle)*ds/parent_node.v;
                 node_temp.target_angle = target_angle;
                 node_temp.delta_angle = delta_angle;
-                node_temp.cost = parent_node.cost + lamda_array[node_temp.depth] * cost + huristic_function(parent_node,node_temp,goalNode);
+                node_temp.cost = parent_node.cost + lamda_array[node_temp.depth] * cost + huristic_function(parent_node,node_temp,goal_angle);
                 //オープンノードリストに追加
                 openNode.emplace_back(node_temp);
             }
@@ -198,7 +223,7 @@ class vfh_tdt : public vfh
             // float ds;//１ステップの距離: 1ステップの経過時間 ts = ds/ロボットの速度
             // steer_r:最小ステアリング半径
             // 
-            if(abs(delta_angle) < ds / steer_r){
+            if(std::abs(delta_angle) < ds / steer_r){
                 return previous_angle + delta_angle;
             }
             else if(delta_angle > 0){
@@ -209,7 +234,7 @@ class vfh_tdt : public vfh
             }
         }
         //--予測コスト(ヒューリスティック関数)
-        double huristic_function(const cost_node& parent_node, const cost_node& node, const cost_node& goal_node){
+        double huristic_function(const cost_node& parent_node, const cost_node& node, const float& goal_angle){
             //ベクトルktとの角度差を用いる
             //kt：ゴールまでの角度
             //lamda:ノードの深さ（時間）に対するカットオフ重み
@@ -220,10 +245,13 @@ class vfh_tdt : public vfh
             // + k2 * (時刻tでのgoalと選択角度の角度差) 
             // + k3 * (時刻tでのgoalと時刻t-1での選択角度の角度差) 
             //)
+            float cost1 = min_dif_angle_rad(goal_angle, node.angle);
+            float cost2 = min_dif_angle_rad(goal_angle, node.target_angle);
+            float cost3 = min_dif_angle_rad(goal_angle, parent_node.target_angle);
             double cost = lamda_array[node.depth] * 
-                ( k1 * (goal_node.angle - node.angle)
-                + k2 * (goal_node.angle - node.target_angle)
-                + k3 * (goal_node.angle - parent_node.target_angle)
+                ( k1 * cost1
+                + k2 * cost2
+                + k3 * cost3
                 );
             return (cost);
         }
@@ -351,15 +379,21 @@ class vfh_tdt : public vfh
             //ノード深さ = 0のときの第1項は
             // ( k1 * (時刻tでのgoalと選択角度の角度差)
             double goal_cost = cost_goal_angle(tagAng, parent_node.angle + cur_target_delta_angle, goalAng);
-            double ang_cost = cost_current_angle(tagAng, parent_node.angle);
-            double prevAng_cost = cost_prev_select_angle(cur_target_delta_angle, parent_node.delta_angle);
-            double cost = lamda[parent_node.depth+1]*( k1*goal_cost + k2*ang_cost + k3*prevAng_cost );
+            double ang_cost = cost_current_angle_rad(tagAng, parent_node.angle);
+            double prevAng_cost = cost_prev_select_angle_rad(cur_target_delta_angle, parent_node.delta_angle);
+            // std::cout<<goal_cost<<" = cost_goal_angle("<<tagAng<<","<< parent_node.angle <<"+"<< cur_target_delta_angle<<"," <<goalAng<<");"<<std::endl;
+            // std::cout<<"cost="<<lamda_array[parent_node.depth+1]<<"*"<<k1<<"*"<<goal_cost<< "+"<< k2<<"*"<<ang_cost<< "+" <<k3<<"*"<<prevAng_cost<<std::endl;
+            double cost = lamda_array[parent_node.depth+1]*( k1*goal_cost + k2*ang_cost + k3*prevAng_cost );
             return cost;
         }
         double cost_goal_angle(const float& target_angle,const float angle, const float& goal_angle){
-            float dif_angle1 = min_dif_angle(target_angle,goal_angle);
-            float dif_angle2 = min_dif_angle(angle,goal_angle);
-            if(dif_angle1 > dif_angle2){
+            // std::cout<<"min_dif_angle_rad("<<target_angle<<","<<goal_angle<<") "<<std::endl;
+            // std::cout<<"min_dif_angle_rad("<<angle<<","<<goal_angle<<") "<<std::endl;
+            float dif_angle1 = min_dif_angle_rad(target_angle,goal_angle);
+            float dif_angle2 = min_dif_angle_rad(angle,goal_angle);
+            // if(dif_angle1 > dif_angle2){
+            // std::cout<<"if("<<"abs("<<dif_angle1<<") > abs("<<dif_angle2<<") )"<<std::endl;
+            if(std::abs(dif_angle1) > std::abs(dif_angle2)){
                 return angleCostFunction(eta_goal, dif_angle1);
             }
             else{
@@ -370,6 +404,117 @@ class vfh_tdt : public vfh
         double angleCostFunction(float& eta, float value){
             // return (pow(value/M_PI/eta,2.0));
             return (value);
+        }
+        void clear_node(){
+            openNode.clear();
+            closedNode.clear();
+            conbineNode.clear();
+        }
+        //get
+        int get_open_node_size(){
+            return (int)openNode.size();
+        }
+        int get_closed_node_size(){
+            return (int)closedNode.size();
+        }
+        //デバッグ
+        void debug_add_node(cost_node parent_node, local_navigation::ClassificationVelocityData &debug_clstr){
+            //距離ヒストグラムを作成
+            std::cout<<"parent_node:\n"
+                <<"\tnum: "<<parent_node.num<<std::endl
+                <<"\tdepth: "<<parent_node.depth<<std::endl
+                <<"\tdx,dy: "<<parent_node.dx<<","<<parent_node.dy<<std::endl
+                <<"\tv,ang: "<<parent_node.v<<","<<parent_node.angle<<std::endl
+                <<"\tangT,angD: "<<parent_node.target_angle<<","<<parent_node.delta_angle<<std::endl
+                <<"\tds,cost: "<<ds<<","<<parent_node.cost<<std::endl
+                <<"\tgoal: "<<goalNode.dx-parent_node.dx<<", "<<goalNode.dy-parent_node.dy<<", "<<atan2(goalNode.dy-parent_node.dy, goalNode.dx-parent_node.dx)<<std::endl
+            <<std::endl;
+            // create_histgram_dis(parent_node);
+            //バイナリヒストグラムを作成
+            // create_binary_histgram(float& robotRadius, float& marginRadius);
+            debug_create_binary_histgram(parent_node, robotRadius, marginRadius,debug_clstr);
+            // std::vector<bool> hst_bi;
+            // get_histgram_bi(hst_bi);
+            //code
+            for(int k=0; k<hst_bi.size();k++){
+                if(!hst_bi[k]){
+                    continue;
+                }
+                //深さゼロでのロボット座標
+                float goal_angle = atan2(goalNode.dy-parent_node.dy, goalNode.dx-parent_node.dx);
+                //vfhコスト算出
+                float target_angle = transform_numToAngle(k);//深さnでのロボット座標系
+                float delta_angle = transform_angleFromCenter(target_angle);
+                //座標変換 taget_angle(n) = delta target_angle(n) from cp(n) + angle of parent_node 
+                target_angle = delta_angle + parent_node.angle;//深さn=0でのロボット座標系
+                //
+                double cost = getCost(target_angle, goal_angle, parent_node, delta_angle);
+                //状態遷移のための位置, 姿勢角度を算出
+                cost_node node_temp;
+                node_temp.num = node_size++;
+                node_temp.parent_node = parent_node.num;
+                node_temp.depth = parent_node.depth + 1;
+                node_temp.angle = transform_AnglePrevToCur(parent_node.angle, delta_angle);
+                node_temp.dx = parent_node.dx + parent_node.v*cos(parent_node.angle + delta_angle)*ds/parent_node.v;
+                node_temp.dy = parent_node.dy + parent_node.v*sin(parent_node.angle + delta_angle)*ds/parent_node.v;
+                node_temp.v = parent_node.v;
+                node_temp.target_angle = target_angle;
+                node_temp.delta_angle = delta_angle;
+                node_temp.cost = parent_node.cost + lamda_array[node_temp.depth] * cost + huristic_function(parent_node,node_temp,goal_angle);
+                if(k%10==0){
+                    std::cout<<"d="<<node_temp.depth<<" "<<parent_node.num<<" -> "<<delta_angle<<": "<<parent_node.cost <<"+"<< cost<<"+"<<huristic_function(parent_node,node_temp,goal_angle)<<std::endl;
+                }
+                //オープンノードリストに追加
+                openNode.emplace_back(node_temp);
+            }
+            //親ノード(この関数の引数のノード)をクローズリストに移動
+            closedNode.emplace_back(openNode[0]);//親ノードは最小コストノード(先頭ノード)[0]
+            //openNodeから移動したノードを削除
+            openNode.erase(openNode.begin());
+        }
+        void debug_create_binary_histgram(cost_node& pNode, float& robotRadius, float& marginRadius, local_navigation::ClassificationVelocityData &debug_clstr){
+            hst_bi.clear();
+            hst_bi.resize((int)((angle_max - angle_min)/angle_div), true);
+            //経過時間 ds/pNode.v * pNode.depthを考慮(ds/pNode.v == ts)
+            //クラスタ変数をどこで管理するかが未定
+            //
+            //ロボット位置
+            float point_xr = pNode.dx;
+            float point_yr = pNode.dy;
+            //
+            for(int k =0; k < debug_clstr.data.size(); k++){//クラスタ数
+                //各クラスタに含まれる点群を取得しヒストグラムを作成
+                for(int m = 0; m < debug_clstr.data[k].pt.size(); m++){
+                    //障害物
+                    float point_x = debug_clstr.data[k].pt[m].x + debug_clstr.twist[k].linear.x * ds/pNode.v*pNode.depth;
+                    float point_y = debug_clstr.data[k].pt[m].y + debug_clstr.twist[k].linear.y * ds/pNode.v*pNode.depth;
+                    float point_difx = point_x - point_xr;
+                    float point_dify = point_y - point_yr;
+                    float angleTemp = atan2(point_dify, point_difx);
+                    float disTemp = sqrt(pow(point_difx,2.0) + pow(point_dify,2.0));
+                    //距離に応じてブロック範囲を変更する
+                    int blockNum;
+                    if(disTemp > dis_threshold ){
+                        double blockAng = atan2((robotRadius+marginRadius), disTemp);
+                        blockNum = (int)(blockAng/angle_div)+1;
+                    }
+                    else if(disTemp > robotRadius){
+                        double blockAng = M_PI_2;
+                        blockNum = (int)(blockAng/angle_div)+1;
+                    }
+                    else{
+                        double blockAng = M_PI;
+                        blockNum = (int)(blockAng/angle_div)+1;
+                    }
+                    int n = transform_angle_RobotToNum(angleTemp);
+                    for(int i = n-blockNum/2; i <= n+blockNum/2; i++){
+                        if(i<0 || i>(int)hst_bi.size()){
+                            continue;
+                        }
+                        hst_bi[i] = false;
+                    }
+                }
+            }
         }
 };
 #endif

@@ -156,6 +156,8 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     if(debugOutputCPVFHCheckerFlag){
        outputCrossPointVFHChecker();
     }
+    //交差位置の表示有無
+    display_output = config.displayOutput;
 }
 
 void obstacleAvoidance::setDefaultCrossPointChecker(){
