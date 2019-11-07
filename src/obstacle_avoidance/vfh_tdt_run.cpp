@@ -41,6 +41,7 @@ class run{
         //制御
         float gainP;//Pゲイン
         //デバッグパラメータ
+        nav_msgs::Odometry debugRobotOdom,debugGoalOdom,debugRelationOdom;
         float loopFPS;
         float marker_life_time;
         float display_fps;
@@ -243,6 +244,7 @@ class run{
             }
             if(config.debugFlag){
                 set_debug_parameter(config);//データ取得
+                update_debug_goal_position();
                 run_debug_process();//処理
                 return ;
             }
@@ -251,6 +253,7 @@ class run{
         //メインループ
         void main_loop(){
             if(data_check()){
+                update_goal_position();
                 data_check_reset();
                 process();
             }
@@ -267,7 +270,29 @@ class run{
             //自己位置姿勢とゴール位置からロボット座標軸上でのゴール座標を算出する
             //robotOdom, goalOdom -> relationOdom
             //ゴール位置のフレームIDをマップに設定してgoalOdomをbase_linkに座標変化すればいいのでは
-            
+            // tf::TransformListener listener_;
+            // tf::Transform cam_to_target;
+            // tf::poseMsgToTF(p->pose.pose, cam_to_target);
+            // tf::StampedTransform req_to_cam;
+            // listener_.lookupTransform(req.base_frame, p->header.frame_id, ros::Time(0), req_to_cam);
+            //面倒なので位置の差と回転行列だけで良さそう
+            //位置差
+            relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.x - robotOdom.pose.pose.position.x;
+            relationOdom.pose.pose.position.y = goalOdom.pose.pose.position.y - robotOdom.pose.pose.position.y;
+            relationOdom.pose.pose.position.z = goalOdom.pose.pose.position.z - robotOdom.pose.pose.position.z;
+            //角度差はロボット姿勢角度
+            tf::Quaternion quat;
+            double r,p,y;
+            quaternionMsgToTF(robotOdom.pose.pose.orientation, quat);
+            tf::Matrix3x3(quat).getRPY(r, p, y);
+            double theta_goal = atan2(relationOdom.pose.pose.position.y,relationOdom.pose.pose.position.x);
+            double theta_robot = y;
+            double theta_relation = theta_goal - theta_robot;
+            double length = std::sqrt(std::pow(relationOdom.pose.pose.position.x,2.0) + std::pow(relationOdom.pose.pose.position.y,2.0));
+            relationOdom.pose.pose.position.x = length * cos(theta_relation);
+            relationOdom.pose.pose.position.y = length * sin(theta_relation);
+            quat=tf::createQuaternionFromYaw(theta_relation);
+            quaternionTFToMsg(quat, relationOdom.pose.pose.orientation);
         }
         //処理
         void process(){
@@ -299,9 +324,24 @@ class run{
             //最良ノードを格納
             best_node = vfhTDT.get_node(target_num);
             
+            cost_node goalNode = vfhTDT.get_goalNode();
+            ROS_INFO("get_best_node");
+            std::cout<<"best_node:\n"
+                <<"\tnum: "<<best_node.num<<std::endl
+                <<"\tdepth: "<<best_node.depth<<std::endl
+                <<"\tdx,dy: "<<best_node.dx<<","<<best_node.dy<<std::endl
+                <<"\tv,ang: "<<best_node.v<<","<<best_node.angle<<std::endl
+                <<"\tangT,angD: "<<best_node.target_angle<<","<<best_node.delta_angle<<std::endl
+                <<"\tcost: "<<best_node.cost<<std::endl
+                <<"\tgoal: "<<goalNode.dx-best_node.dx<<", "<<goalNode.dy-best_node.dy<<", "<<atan2(goalNode.dy-best_node.dy, goalNode.dx-best_node.dx)<<std::endl
+            <<std::endl;
             //目標角度, 速度を取得
             target_angle = atan2(best_node.dy,best_node.dx);//best_node.angle;//角度は算出したやつ
-            target_vel = default_vel;//速度一定
+            target_vel= default_vel;//速度一定
+            ROS_INFO("v,ang:%f,%f", target_vel,target_angle*180/M_PI);
+            //display node
+            display_all_node(vfhTDT.get_open_node(), vfhTDT.get_closed_node());
+            
         }
         geometry_msgs::Twist controler(float& tagVel, float& tagAng){
             //p制御
@@ -344,6 +384,34 @@ class run{
             debugObstacleVx1 = config.debugObstacleVx1;
             debugObstacleVy1 = config.debugObstacleVy1;
             
+        }
+        void update_debug_goal_position(){
+            //自己位置姿勢とゴール位置からロボット座標軸上でのゴール座標を算出する
+            //robotOdom, goalOdom -> relationOdom
+            //ゴール位置のフレームIDをマップに設定してgoalOdomをbase_linkに座標変化すればいいのでは
+            // tf::TransformListener listener_;
+            // tf::Transform cam_to_target;
+            // tf::poseMsgToTF(p->pose.pose, cam_to_target);
+            // tf::StampedTransform req_to_cam;
+            // listener_.lookupTransform(req.base_frame, p->header.frame_id, ros::Time(0), req_to_cam);
+            //面倒なので位置の差と回転行列だけで良さそう
+            //位置差
+            debugRelationOdom.pose.pose.position.x = debugGoalOdom.pose.pose.position.x - debugRobotOdom.pose.pose.position.x;
+            debugRelationOdom.pose.pose.position.y = debugGoalOdom.pose.pose.position.y - debugRobotOdom.pose.pose.position.y;
+            debugRelationOdom.pose.pose.position.z = debugGoalOdom.pose.pose.position.z - debugRobotOdom.pose.pose.position.z;
+            //角度差はロボット姿勢角度
+            tf::Quaternion quat;
+            double r,p,y;
+            quaternionMsgToTF(debugRobotOdom.pose.pose.orientation, quat);
+            tf::Matrix3x3(quat).getRPY(r, p, y);
+            double theta_goal = atan2(debugRelationOdom.pose.pose.position.y,debugRelationOdom.pose.pose.position.x);
+            double theta_robot = y;
+            double theta_relation = theta_goal - theta_robot;
+            double length = std::sqrt(std::pow(debugRelationOdom.pose.pose.position.x,2.0) + std::pow(debugRelationOdom.pose.pose.position.y,2.0));
+            debugRelationOdom.pose.pose.position.x = length * cos(theta_relation);
+            debugRelationOdom.pose.pose.position.y = length * sin(theta_relation);
+            quat=tf::createQuaternionFromYaw(theta_relation);
+            quaternionTFToMsg(quat, debugRelationOdom.pose.pose.orientation);
         }
         void run_debug_process(){
             ROS_INFO("run_debug_process");
