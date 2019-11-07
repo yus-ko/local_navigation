@@ -16,8 +16,9 @@ class run{
         ros::NodeHandle nhSub1;
         ros::Subscriber sub1,sub2,sub3;
         local_navigation::ClassificationVelocityData clstr;//速度データ付きのクラスタデータ
-        nav_msgs::Odometry robotOdom,goalOdom;
+        nav_msgs::Odometry robotOdom,goalOdom,relationOdom;
         beego_control::beego_encoder robotEncoder;
+        float goal_x,goal_y;
         float d;//wheels radius
         float cur_vel, cur_angVel;
         //rqt_reconfigure
@@ -99,7 +100,12 @@ class run{
             float delta_step_tmp;
             //ロボットパラメータ
             float robotRadius_tmp, steer_r_tmp;
-            
+            //ゴール位置
+            if(n.getParam("vfh_tdt/goalX",goal_x) && n.getParam("vfh_tdt/goalY",goal_y) ){
+                RECEIVED_GOAL_ODOM = true;
+                goalOdom.pose.pose.position.x = goal_x;
+                goalOdom.pose.pose.position.y = goal_y;
+            }
             //vfhパラメータ
             n.getParam("vfh_tdt/k1",k1_tmp);
             n.getParam("vfh_tdt/k2",k2_tmp);
@@ -144,13 +150,13 @@ class run{
                 //データをコピー
             	clstr = *msg;
                 vfhTDT.set_cluster_data(clstr);
-                RECEIVED_CLUSTER = false;
+                RECEIVED_CLUSTER = true;
                 main_loop();
         }
         void robotOdom_callback(const nav_msgs::Odometry::ConstPtr& msg){
             //データをコピー
         	robotOdom = *msg;
-            RECEIVED_ROBOT_ODOM = false;
+            RECEIVED_ROBOT_ODOM = true;
             main_loop();
         }
         void robotEncoder_callback(const beego_control::beego_encoder::ConstPtr& msg){
@@ -158,12 +164,13 @@ class run{
             robotEncoder = *msg;
             cur_vel = (robotEncoder.vel.r + robotEncoder.vel.l)/2;
             cur_angVel = (robotEncoder.vel.r - robotEncoder.vel.l)/(2 * d);
-            RECEIVED_ROBOT_ENCODAR = false;
+            RECEIVED_ROBOT_ENCODAR = true;
             main_loop();
         }
         void goalOdom_callback(const nav_msgs::Odometry::ConstPtr& msg){
             //データをコピー
         	goalOdom = *msg;
+            RECEIVED_GOAL_ODOM = true;
             main_loop();
         }
         //--rqt_reconfigureからの読み込み
@@ -256,11 +263,19 @@ class run{
             RECEIVED_ROBOT_ODOM = false;
             RECEIVED_ROBOT_ENCODAR = false;
         }
+        void update_goal_position(){
+            //自己位置姿勢とゴール位置からロボット座標軸上でのゴール座標を算出する
+            //robotOdom, goalOdom -> relationOdom
+            //ゴール位置のフレームIDをマップに設定してgoalOdomをbase_linkに座標変化すればいいのでは
+            
+        }
         //処理
         void process(){
+            //clear nodes
+            vfhTDT.clear_node();
             //スタートノードとゴールノードをセット
             vfhTDT.create_start_node();//
-            vfhTDT.create_goal_node(2.0,6.0);//
+            vfhTDT.create_goal_node(goalOdom.pose.pose.position.x,goalOdom.pose.pose.position.y);//
             //スタートノードをオープンリストに追加
             vfhTDT.add_start_node();
             //A*アルゴリズムで探索を行っていく
