@@ -42,6 +42,9 @@ class run{
         //デバッグパラメータ
         float loopFPS;
         float marker_life_time;
+        float display_fps;
+        bool display_searching_process;
+        int sparse_rate;
         //表示用publisher
         ros::NodeHandle nhPubDeb;
         ros::Publisher pubDebugClstr,pubDebugNode;    
@@ -221,6 +224,9 @@ class run{
                 config.debugFlag? "True":"False"
             );
             marker_life_time = config.marker_life_time;
+            display_fps = config.display_fps;
+            display_searching_process = config.display_searching_process;
+            sparse_rate = config.sparse_rate;
             if (config.displayDebugClstr)
             {
                 set_debug_parameter(config);//データ取得
@@ -269,7 +275,7 @@ class run{
                 }
                 //最小コストノードの子ノードを作成
                 vfhTDT.add_node(vfhTDT.get_node(0));//先頭ノードを取得
-                //
+                // 
                 ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
             }
             //
@@ -342,6 +348,8 @@ class run{
             int best_node_num;
             int target_num;
             ROS_INFO("while");
+            
+            ros::Rate rate(display_fps);
             while(ros::ok()){
                 //最小コストとなるノード番号を取得
                 int node_num = vfhTDT.get_min_cost_node();
@@ -357,7 +365,12 @@ class run{
                 //
                 // ROS_INFO("debug_add_node");
                 // ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
-
+                //
+                if(display_searching_process){
+                    display_all_node(vfhTDT.get_open_node(), vfhTDT.get_closed_node(), 1.0/display_fps);
+                    rate.sleep();
+                }
+                
             }
             //
             vfhTDT.cobine_open_close_node();
@@ -528,7 +541,118 @@ class run{
                     marker.color.g = 1.0;
                     marker.color.b = 1.0;
                 }
-                else if(i%(best_node.depth*20)!= 0 ){
+                else if(i%(sparse_rate)!= 0 ){
+                    continue;
+                }
+                marker.id = count;
+                markerArray.markers[count++] = marker;
+                
+            }
+            marker.scale.x = 0.15;
+            marker.color.a = 1.0;
+            marker.color.r = 1.0;
+            marker.color.g = 0.0;
+            marker.color.b = 0.0;
+            marker.type = visualization_msgs::Marker::ARROW;
+            for(int i=0;i<closed_node.size();i++){
+                std::string namespace_str = "depth: ";
+                namespace_str = namespace_str + std::to_string(closed_node[i].depth);
+                namespace_str = namespace_str + std::string("Closed");
+                marker.ns = namespace_str;
+                marker.pose.position.x = closed_node[i].dy;
+                marker.pose.position.y = -closed_node[i].dx;
+                marker.pose.position.z = 0;
+                double yaw = closed_node[i].angle;
+                marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw-M_PI_2);
+                marker.id = count;
+                markerArray.markers[count++] = marker;
+                
+            }
+            //最終的な命令方向を
+            marker.scale.x = 0.2;
+            marker.color.a = 1.0;
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 0.0;
+            marker.ns =std::string("target_vec");;
+            marker.pose.position.x = 0;
+            marker.pose.position.y = 0;
+            marker.pose.position.z = 0;
+            double yaw = target_angle;
+            marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw-M_PI_2);
+            marker.id = count;
+            markerArray.markers[count++] = marker;
+            //
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 1.0;
+            marker.ns = "text";
+            marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+            marker.text = "v,ang:("+ std::to_string(target_vel) +","+ std::to_string(target_angle*180/M_PI)+")" ;
+            marker.scale.x = 0.5;
+            marker.scale.y = 0.5;
+            marker.scale.z = 0.3;
+            marker.pose.position.z =- 0.5;
+            marker.id = count;
+            markerArray.markers[count++] = marker;
+            
+            //
+            markerArray.markers.resize(count);
+            ROS_INFO("Comp:markerArray.markers.size():%d",(int)markerArray.markers.size());
+            if(markerArray.markers.size()){
+                pubDebugNode.publish( markerArray );
+            }   
+        }
+
+        void display_all_node(const std::vector<cost_node>& open_node,const std::vector<cost_node>& closed_node, float life_time){
+            //マーカー表示
+            visualization_msgs::MarkerArray markerArray;
+            visualization_msgs::Marker marker;
+            marker.header= debug_clstr.header;
+            marker.ns = "my_namespace";
+            marker.lifetime = ros::Duration(life_time);
+            // marker.type = visualization_msgs::Marker::ARROW;
+            // marker.type = visualization_msgs::Marker::SPHERE;
+            marker.action = visualization_msgs::Marker::ADD;
+            int marker_size=0;
+            marker_size = (int)open_node.size()+(int)closed_node.size() + 2;
+            markerArray.markers.resize(marker_size);
+            ROS_INFO("Node:markerArray.markers.size():%d",(int)markerArray.markers.size());
+            //
+            //
+            marker.scale.y = 0.05;
+            marker.scale.z = 0.05;
+
+            marker.type = visualization_msgs::Marker::ARROW;
+            int count = 0;
+            for(int i=0;i<open_node.size();i++){
+                marker.color.a = 1.0;
+                marker.color.r = 1.0;
+                marker.color.g = 1.0;
+                marker.color.b = 1.0;
+                marker.scale.x = 0.05;
+                marker.scale.y = 0.02;
+                marker.scale.z = 0.02;
+                std::string namespace_str = "depth: ";
+                namespace_str = namespace_str + std::to_string(open_node[i].depth);
+                namespace_str = namespace_str + std::string("Open");
+                marker.ns = namespace_str;
+                marker.pose.position.x = open_node[i].dy;
+                marker.pose.position.y = -open_node[i].dx;
+                marker.pose.position.z = 0;
+                double yaw = open_node[i].angle;
+                marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw-M_PI_2);
+                if(best_node.num == open_node[i].num){
+                    namespace_str = std::string("best");
+                    marker.ns = namespace_str;
+                    marker.scale.x = 0.2;
+                    marker.scale.y = 0.05;
+                    marker.scale.z = 0.05;
+                    marker.color.r = 0.0;
+                    marker.color.g = 1.0;
+                    marker.color.b = 1.0;
+                }
+                else if(i%(sparse_rate)!= 0 ){
                     continue;
                 }
                 marker.id = count;

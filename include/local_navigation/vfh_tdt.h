@@ -456,6 +456,17 @@ class vfh_tdt : public vfh
             debug_create_binary_histgram(parent_node, robotRadius, marginRadius,debug_clstr);
             // std::vector<bool> hst_bi;
             // get_histgram_bi(hst_bi);
+            //追加予定数を算出
+            int add_node_size = 0;
+            for(int k=0; k<hst_bi.size();k++){
+                if(hst_bi[k]){
+                    add_node_size ++;
+                }
+            }
+            //resize
+            int bef_size = (int)openNode.size();
+            openNode.resize((int)openNode.size()+add_node_size);
+            auto itr = openNode.begin()+bef_size;//bef_size番目のノードを指す
             // code
             for(int k=0; k<hst_bi.size();k++){
                 if(!hst_bi[k]){
@@ -486,7 +497,10 @@ class vfh_tdt : public vfh
                 //     std::cout<<"d="<<node_temp.depth<<" "<<parent_node.num<<" -> "<<delta_angle<<": "<<parent_node.cost <<"+"<< cost<<"+"<<huristic_function(parent_node,node_temp,goal_angle)<<std::endl;
                 // }
                 //オープンノードリストに追加
-                openNode.emplace_back(node_temp);
+                // openNode.emplace_back(node_temp);
+                // openNode[itr++] = node_temp;
+                *itr = node_temp;
+                itr++;
             }
             //親ノード(この関数の引数のノード)をクローズリストに移動
             closedNode.emplace_back(openNode[0]);//親ノードは最小コストノード(先頭ノード)[0]
