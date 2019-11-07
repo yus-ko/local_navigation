@@ -14,7 +14,7 @@ class run{
     private:
         //受信データ
         ros::NodeHandle nhSub1;
-        ros::Subscriber sub1,sub2,sub3;
+        ros::Subscriber sub1,sub2,sub3,sub4;
         local_navigation::ClassificationVelocityData clstr;//速度データ付きのクラスタデータ
         nav_msgs::Odometry robotOdom,goalOdom,relationOdom;
         beego_control::beego_encoder robotEncoder;
@@ -42,6 +42,7 @@ class run{
         float gainP;//Pゲイン
         //デバッグパラメータ
         nav_msgs::Odometry debugRobotOdom,debugGoalOdom,debugRelationOdom;
+        float debugRobotYaw;
         float loopFPS;
         float marker_life_time;
         float display_fps;
@@ -54,6 +55,8 @@ class run{
         float debugGoalPosX;
         float debugGoalPosY;
         //--robot
+        float debugRobotX1;
+        float debugRobotY1;
         float debugCurAng;
         float debugCmd_vel;
         float debugPrevTagAng;
@@ -73,8 +76,9 @@ class run{
         {
             //subscriber
             sub1=nhSub1.subscribe("classificationDataEstimateVelocity",1,&run::cluster_callback,this);
-            sub2=nhSub1.subscribe("robotOdometry",1,&run::robotOdom_callback,this);
+            sub2=nhSub1.subscribe("zed_node/odom",1,&run::robotOdom_callback,this);
             sub3=nhSub1.subscribe("goalOdometry",1,&run::goalOdom_callback,this);
+            sub4=nhSub1.subscribe("encoder",1,&run::robotEncoder_callback,this);
             pub= nhPub.advertise<geometry_msgs::Twist>("cmd_vel", 1);
             pubDebugClstr = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_clstr", 1);
             pubDebugNode = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_node", 1);
@@ -106,6 +110,9 @@ class run{
                 RECEIVED_GOAL_ODOM = true;
                 goalOdom.pose.pose.position.x = goal_x;
                 goalOdom.pose.pose.position.y = goal_y;
+                goalOdom.pose.pose.position.z = 0;
+                tf::Quaternion quat=tf::createQuaternionFromYaw(M_PI_2);
+                quaternionTFToMsg(quat, goalOdom.pose.pose.orientation);
             }
             //vfhパラメータ
             n.getParam("vfh_tdt/k1",k1_tmp);
@@ -252,14 +259,24 @@ class run{
         }
         //メインループ
         void main_loop(){
+            // ROS_INFO("main_loop");
             if(data_check()){
+                ROS_INFO("data_check");
                 update_goal_position();
+                ROS_INFO("update_goal_position");
                 data_check_reset();
+                ROS_INFO("data_check_reset");
                 process();
+                ROS_INFO("process");
             }
         }
         bool data_check(){
-            return(RECEIVED_CLUSTER && RECEIVED_GOAL_ODOM && RECEIVED_ROBOT_ODOM && RECEIVED_ROBOT_ENCODAR);
+            return(
+                RECEIVED_CLUSTER 
+                && RECEIVED_GOAL_ODOM 
+                && RECEIVED_ROBOT_ODOM 
+                // && RECEIVED_ROBOT_ENCODAR
+            );
         }
         bool data_check_reset(){
             RECEIVED_CLUSTER = false;
@@ -300,7 +317,7 @@ class run{
             vfhTDT.clear_node();
             //スタートノードとゴールノードをセット
             vfhTDT.create_start_node();//
-            vfhTDT.create_goal_node(goalOdom.pose.pose.position.x,goalOdom.pose.pose.position.y);//
+            vfhTDT.create_goal_node(-relationOdom.pose.pose.position.y,relationOdom.pose.pose.position.x);//
             //スタートノードをオープンリストに追加
             vfhTDT.add_start_node();
             //A*アルゴリズムで探索を行っていく
@@ -316,14 +333,13 @@ class run{
                 //最小コストノードの子ノードを作成
                 vfhTDT.add_node(vfhTDT.get_node(0));//先頭ノードを取得
                 // 
-                ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
+                // ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
             }
             //
             vfhTDT.cobine_open_close_node();
             target_num = vfhTDT.search_node_n(best_node_num);
             //最良ノードを格納
             best_node = vfhTDT.get_node(target_num);
-            
             cost_node goalNode = vfhTDT.get_goalNode();
             ROS_INFO("get_best_node");
             std::cout<<"best_node:\n"
@@ -373,6 +389,9 @@ class run{
             debugGoalPosX = config.debugGoalPosX;
             debugGoalPosY = config.debugGoalPosY;
             //robot
+            debugRobotX1 = config.debugRobotX1;            
+            debugRobotY1 = config.debugRobotY1;
+            debugRobotYaw = config.debugRobotYaw*M_PI/180;
             debugCurAng = config.debugCurAng;
             debugCmd_vel = config.debugCmd_vel;
             debugPrevTagAng = config.debugPrevTagAng;
@@ -383,7 +402,19 @@ class run{
             debugObstacleSize1 = config.debugObstacleSize1;
             debugObstacleVx1 = config.debugObstacleVx1;
             debugObstacleVy1 = config.debugObstacleVy1;
+            //set odometry data
+            debugGoalOdom.pose.pose.position.x = debugGoalPosX;//debugGoalPosY;
+            debugGoalOdom.pose.pose.position.y = debugGoalPosY;//-debugGoalPosX;
+            tf::Quaternion quat=tf::createQuaternionFromYaw(M_PI_2);//debugRobotYaw-M_PI_2);
+            quaternionTFToMsg(quat, debugGoalOdom.pose.pose.orientation);
             
+            debugGoalOdom.pose.pose.position.z = 0;
+            debugRobotOdom.pose.pose.position.x = debugRobotX1;//debugRobotY1;
+            debugRobotOdom.pose.pose.position.y = debugRobotY1;//-debugRobotX1;
+            debugRobotOdom.pose.pose.position.z = 0;
+            
+            quat=tf::createQuaternionFromYaw(debugRobotYaw);//debugRobotYaw-M_PI_2);
+            quaternionTFToMsg(quat, debugRobotOdom.pose.pose.orientation);
         }
         void update_debug_goal_position(){
             //自己位置姿勢とゴール位置からロボット座標軸上でのゴール座標を算出する
@@ -422,7 +453,7 @@ class run{
             ROS_INFO("create_debug_clstr");
             //スタートノードとゴールノードをセット
             vfhTDT.create_start_node();//
-            vfhTDT.create_goal_node(debugGoalPosX,debugGoalPosY);//
+            vfhTDT.create_goal_node(-debugRelationOdom.pose.pose.position.y,debugRelationOdom.pose.pose.position.x);//
             ROS_INFO("create_start_node,create_goal_node");
             //スタートノードをオープンリストに追加
             vfhTDT.add_start_node();
@@ -591,7 +622,6 @@ class run{
             markerArray.markers.resize(marker_size);
             ROS_INFO("Node:markerArray.markers.size():%d",(int)markerArray.markers.size());
             //
-            //
             marker.scale.y = 0.05;
             marker.scale.z = 0.05;
 
@@ -678,6 +708,20 @@ class run{
             marker.pose.position.z =- 0.5;
             marker.id = count;
             markerArray.markers[count++] = marker;
+            //ゴール
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 1.0;
+            marker.ns = "goal";
+            marker.type = visualization_msgs::Marker::SPHERE;
+            marker.scale.x = 0.5;
+            marker.scale.y = 0.5;
+            marker.scale.z = 0.5;
+            marker.pose.position.x = debugRelationOdom.pose.pose.position.x;
+            marker.pose.position.y = debugRelationOdom.pose.pose.position.y;
+            marker.pose.position.z = debugRelationOdom.pose.pose.position.z;
+            marker.id = count;
+            markerArray.markers[count++] = marker;
             
             //
             markerArray.markers.resize(count);
@@ -698,7 +742,7 @@ class run{
             // marker.type = visualization_msgs::Marker::SPHERE;
             marker.action = visualization_msgs::Marker::ADD;
             int marker_size=0;
-            marker_size = (int)open_node.size()+(int)closed_node.size() + 2;
+            marker_size = (int)open_node.size()+(int)closed_node.size() + 3;
             markerArray.markers.resize(marker_size);
             ROS_INFO("Node:markerArray.markers.size():%d",(int)markerArray.markers.size());
             //
@@ -768,7 +812,7 @@ class run{
             marker.color.r = 1.0;
             marker.color.g = 1.0;
             marker.color.b = 0.0;
-            marker.ns =std::string("target_vec");;
+            marker.ns =std::string("target_vec");
             marker.pose.position.x = 0;
             marker.pose.position.y = 0;
             marker.pose.position.z = 0;
@@ -789,7 +833,20 @@ class run{
             marker.pose.position.z =- 0.5;
             marker.id = count;
             markerArray.markers[count++] = marker;
-            
+            //ゴール
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 1.0;
+            marker.ns = "goal";
+            marker.type = visualization_msgs::Marker::SPHERE;
+            marker.scale.x = 0.5;
+            marker.scale.y = 0.5;
+            marker.scale.z = 0.5;
+            marker.pose.position.x = relationOdom.pose.pose.position.x;
+            marker.pose.position.y = relationOdom.pose.pose.position.y;
+            marker.pose.position.z = 0;
+            marker.id = count;
+            markerArray.markers[count++] = marker;
             //
             markerArray.markers.resize(count);
             ROS_INFO("Comp:markerArray.markers.size():%d",(int)markerArray.markers.size());

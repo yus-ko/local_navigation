@@ -195,8 +195,23 @@ class vfh_tdt : public vfh
             create_binary_histgram(parent_node, robotRadius, marginRadius);
             // std::vector<bool> hst_bi;
             // get_histgram_bi(hst_bi);
+            //
+            //追加予定数を算出
+            int add_node_size = 0;
+            for(int k=0; k<hst_bi.size();k++){
+                if(hst_bi[k]){
+                    add_node_size ++;
+                }
+            }
+            //resize
+            int bef_size = (int)openNode.size();
+            openNode.resize((int)openNode.size()+add_node_size);
+            auto itr = openNode.begin()+bef_size;//bef_size番目のノードを指す
             //code
             for(int k=0; k<hst_bi.size();k++){
+                if(!hst_bi[k]){
+                    continue;
+                }
                 //深さゼロでのロボット座標
                 float goal_angle = atan2(goalNode.dy-parent_node.dy, goalNode.dx-parent_node.dx);
                 //vfhコスト算出
@@ -214,11 +229,14 @@ class vfh_tdt : public vfh
                 node_temp.angle = transform_AnglePrevToCur(parent_node.angle, delta_angle);
                 node_temp.dx = parent_node.dx + parent_node.v*cos(parent_node.angle + delta_angle)*ds/parent_node.v;
                 node_temp.dy = parent_node.dy + parent_node.v*sin(parent_node.angle + delta_angle)*ds/parent_node.v;
+                node_temp.v = parent_node.v;
                 node_temp.target_angle = target_angle;
                 node_temp.delta_angle = delta_angle;
                 node_temp.cost = parent_node.cost + lamda_array[node_temp.depth] * cost + huristic_function(parent_node,node_temp,goal_angle);
                 //オープンノードリストに追加
-                openNode.emplace_back(node_temp);
+                // openNode.emplace_back(node_temp);
+                *itr = node_temp;
+                itr++;
             }
             //親ノード(この関数の引数のノード)をクローズリストに移動
             closedNode.emplace_back(openNode[0]);//親ノードは最小コストノード(先頭ノード)[0]
@@ -493,9 +511,6 @@ class vfh_tdt : public vfh
                 node_temp.target_angle = target_angle;
                 node_temp.delta_angle = delta_angle;
                 node_temp.cost = parent_node.cost + lamda_array[node_temp.depth] * cost + huristic_function(parent_node,node_temp,goal_angle);
-                // if(k%10==0){
-                //     std::cout<<"d="<<node_temp.depth<<" "<<parent_node.num<<" -> "<<delta_angle<<": "<<parent_node.cost <<"+"<< cost<<"+"<<huristic_function(parent_node,node_temp,goal_angle)<<std::endl;
-                // }
                 //オープンノードリストに追加
                 // openNode.emplace_back(node_temp);
                 // openNode[itr++] = node_temp;

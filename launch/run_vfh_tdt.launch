@@ -38,6 +38,8 @@
   <arg name="vfh_tdt/debugObstacleVx1" default="-0.4"/>
   <arg name="vfh_tdt/debugObstacleVy1" default="0.0"/> -->
   <!-- <group ns="$(arg robot_name)"> -->
+  <arg name="robot_name" default="robot2"/>
+  <group ns="$(arg robot_name)">
   <node pkg="local_navigation" name="local_navigation_vfh_tdt" type="local_navigation_vfh_tdt" output="screen" respawn="false">
     <!-- rqt_reconfigure -->
     <param name="vfh_tdt/rqt_reconfigure" value="$(arg vfh_tdt/rqt_reconfigure)"/>
@@ -67,4 +69,5 @@
     <param name="vfh_tdt/loopFPS" value="$(arg vfh_tdt/loopFPS)"/>
   </node>
   <!-- </group> -->
+  </group>
 </launch>
