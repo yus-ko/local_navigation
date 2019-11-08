@@ -67,6 +67,12 @@ class run{
         float debugObstacleSize1;
         float debugObstacleVx1;
         float debugObstacleVy1;
+        float debugObstacleX2;
+        float debugObstacleY2;
+        float debugObstacleW2;
+        float debugObstacleH2;
+        float debugObstacleVx2;
+        float debugObstacleVy2;
         local_navigation::ClassificationVelocityData debug_clstr;
         uint32_t debug_seq;
     public:
@@ -354,26 +360,27 @@ class run{
             double goal_y = relationOdom.pose.pose.position.x;
             vfhTDT.create_goal_node(goal_x ,goal_y);//
             //スタートノードをオープンリストに追加
-            std::cout<<"create_goal_node"<<std::endl;
+            // std::cout<<"create_goal_node"<<std::endl;
             vfhTDT.add_start_node();
             //A*アルゴリズムで探索を行っていく
             int best_node_num;
             int target_num;
-            std::cout<<"add_start_node"<<std::endl;
+            // std::cout<<"add_start_node"<<std::endl;
             while(ros::ok()){
                 //最小コストとなるノード番号を取得
-                ROS_INFO("get_min_cost_node");
+                // ROS_INFO("get_min_cost_node");
                 int node_num = vfhTDT.get_min_cost_node();
-                ROS_INFO("check_search_finish");
+                // ROS_INFO("check_search_finish");
                 if(vfhTDT.check_search_finish()){
                     best_node_num = node_num;
                     break;
                 }
-                ROS_INFO("add_node");
+                // ROS_INFO("add_node");
                 //最小コストノードの子ノードを作成
-                vfhTDT.add_node(vfhTDT.get_node(0));//先頭ノードを取得
+                // vfhTDT.add_node(vfhTDT.get_node(0));//先頭ノードを取得
+                vfhTDT.debug_add_node(vfhTDT.get_node(0), clstr);//先頭ノードを取得
                 // 
-                ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
+                // ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
             }
             //
             std::cout<<"cobine_open_close_node"<<std::endl;
@@ -381,7 +388,7 @@ class run{
             std::cout<<"search_node_n"<<std::endl;
             target_num = vfhTDT.search_node_n(best_node_num);
             //最良ノードを格納
-            best_node = vfhTDT.get_node(target_num);
+            best_node = vfhTDT.get_conbine_node(target_num);
             cost_node goalNode = vfhTDT.get_goalNode();
             ROS_INFO("get_best_node");
             std::cout<<"best_node:\n"
@@ -398,8 +405,9 @@ class run{
             target_vel= default_vel;//速度一定
             ROS_INFO("v,ang:%f,%f", target_vel,target_angle*180/M_PI);
             //display node
-            display_all_node(vfhTDT.get_open_node(), vfhTDT.get_closed_node());
-            
+            // display_all_node(vfhTDT.get_open_node(), vfhTDT.get_closed_node());
+            display_all_node(clstr,vfhTDT.get_open_node(), vfhTDT.get_closed_node());
+            display_clstr(clstr);
         }
         geometry_msgs::Twist controler(float& tagVel, float& tagAng){
             //p制御
@@ -444,6 +452,13 @@ class run{
             debugObstacleSize1 = config.debugObstacleSize1;
             debugObstacleVx1 = config.debugObstacleVx1;
             debugObstacleVy1 = config.debugObstacleVy1;
+            //obstacle
+            debugObstacleX2 = config.debugObstacleX2;
+            debugObstacleY2 = config.debugObstacleY2;
+            debugObstacleW2 = config.debugObstacleW2;
+            debugObstacleH2 = config.debugObstacleH2;
+            debugObstacleVx2 = config.debugObstacleVx2;
+            debugObstacleVy2 = config.debugObstacleVy2;
             //set odometry data
             debugGoalOdom.pose.pose.position.x = debugGoalPosX;//debugGoalPosY;
             debugGoalOdom.pose.pose.position.y = debugGoalPosY;//-debugGoalPosX;
@@ -565,12 +580,12 @@ class run{
             debug_clstr.header.stamp = ros::Time::now();
             //クラスタデータ
             ROS_INFO("gc");
-            debug_clstr.data.resize(1);
+            debug_clstr.data.resize(2);
             debug_clstr.data[0].gc.x = debugObstacleX1;
             debug_clstr.data[0].gc.y = debugObstacleY1;
             debug_clstr.data[0].gc.z = 0;
             ROS_INFO("twist");
-            debug_clstr.twist.resize(1);
+            debug_clstr.twist.resize(2);
             debug_clstr.twist[0].linear.x = debugObstacleVx1;
             debug_clstr.twist[0].linear.y = debugObstacleVy1;
             debug_clstr.twist[0].linear.z = 0;
@@ -580,6 +595,32 @@ class run{
             debug_clstr.data[0].pt[0].x = debugObstacleX1;
             debug_clstr.data[0].pt[0].y = debugObstacleY1;
             debug_clstr.data[0].pt[0].z = 0;
+
+            ROS_INFO("gc");
+            debug_clstr.data[1].gc.x = debugObstacleX2;
+            debug_clstr.data[1].gc.y = debugObstacleY2;
+            debug_clstr.data[1].gc.z = 0;
+            ROS_INFO("twist");
+            debug_clstr.twist[1].linear.x = debugObstacleVx2;
+            debug_clstr.twist[1].linear.y = debugObstacleVy2;
+            debug_clstr.twist[1].linear.z = 0;
+            //
+            float W0 = debugObstacleX2 - debugObstacleW2/0.1;
+            float H0 = debugObstacleY2 - debugObstacleH2/0.1;
+            float W1 = debugObstacleX2 + debugObstacleW2/0.1;
+            float H1 = debugObstacleY2 + debugObstacleH2/0.1;
+            debug_clstr.data[1].size.data = (int)((W1 - W0)*(H1 - H0)/0.1/0.1)+1;
+            debug_clstr.data[1].pt.resize(debug_clstr.data[1].size.data);
+            int count=0;
+            for(float h =H0; h <= H1; h+=0.1){
+                for(float w =W0; w<= W1; w+=0.1){
+                    debug_clstr.data[1].pt[count].x = w; 
+                    debug_clstr.data[1].pt[count].y = h; 
+                    debug_clstr.data[1].pt[count].z = 0;
+                    count++;
+                }
+            }
+            debug_clstr.data[1].pt.resize(count);
         }
         void display_debug_clstr(){
             ROS_INFO("display_debug_clstr");
@@ -634,6 +675,74 @@ class run{
                     marker.pose.position.x = debug_clstr.data[i].pt[k].y;
                     marker.pose.position.y = -debug_clstr.data[i].pt[k].x;
                     marker.pose.position.z = debug_clstr.data[i].pt[k].z;
+                    marker.color.a = 1.0;
+                    marker.color.r = 255;
+                    marker.color.g = 255;
+                    marker.color.b = 255;
+                    marker.scale.x = 0.1;
+                    marker.scale.y = 0.05;
+                    marker.scale.z = 0.05;
+                    marker.id = count;
+                    markerArray.markers[count++] = marker;
+                }
+            }
+            if(markerArray.markers.size()){
+                pubDebugClstr.publish( markerArray );
+            }            
+        }
+        void display_clstr(const local_navigation::ClassificationVelocityData& temp_clstr){
+            ROS_INFO("display_debug_clstr");
+            //マーカー表示
+            visualization_msgs::MarkerArray markerArray;
+            visualization_msgs::Marker marker;
+            marker.header.frame_id= "base_link";//;temp_clstr.header;
+            marker.ns = "my_namespace";
+            marker.lifetime = ros::Duration(marker_life_time);
+            // marker.type = visualization_msgs::Marker::ARROW;
+            // marker.type = visualization_msgs::Marker::SPHERE;
+            marker.action = visualization_msgs::Marker::ADD;
+            int marker_size=0;
+            for(int i = 0; i<temp_clstr.data.size();i++){
+                marker_size += (int)temp_clstr.data[i].pt.size();
+            }
+            marker_size += (int)temp_clstr.data.size();
+            markerArray.markers.resize(marker_size);
+            ROS_INFO("markerArray.markers.size():%d",(int)markerArray.markers.size());
+            //
+            //
+            int count = 0;
+            for(int i = 0; i<temp_clstr.data.size();i++){
+                std::string clusterNumStr = "cluster: ";
+                clusterNumStr = clusterNumStr + std::to_string(i);
+                marker.ns = clusterNumStr;
+                //text
+                marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+                marker.text = "vx,vy:("+ std::to_string(temp_clstr.twist[i].linear.x) +","+ std::to_string(temp_clstr.twist[i].linear.y)+")" ;
+                marker.scale.x = 0.5;
+                marker.scale.y = 0.5;
+                marker.scale.z = 0.3;
+                marker.color.a = 1.0;
+                marker.color.r = 1.0;
+                marker.color.g = 1.0;
+                marker.color.b = 0.7;
+                marker.pose.position.x = temp_clstr.data[i].gc.y;
+                marker.pose.position.y = -temp_clstr.data[i].gc.x;
+                marker.pose.position.z = temp_clstr.data[i].gc.z + 1.0;
+                marker.id = count;
+                markerArray.markers[count++] = marker;
+                //position 
+                double yaw = std::atan2(-temp_clstr.twist[i].linear.x, temp_clstr.twist[i].linear.y);
+                if(temp_clstr.twist[i].linear.x==0 && temp_clstr.twist[i].linear.y ==0){
+                   marker.type = visualization_msgs::Marker::SPHERE; 
+                }
+                else{
+                    marker.type = visualization_msgs::Marker::ARROW;
+                    marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
+                }
+                for(int k = 0; k<temp_clstr.data[i].pt.size();k++){
+                    marker.pose.position.x = temp_clstr.data[i].pt[k].y;
+                    marker.pose.position.y = -temp_clstr.data[i].pt[k].x;
+                    marker.pose.position.z = temp_clstr.data[i].pt[k].z;
                     marker.color.a = 1.0;
                     marker.color.r = 255;
                     marker.color.g = 255;
@@ -780,6 +889,130 @@ class run{
             marker.header= debug_clstr.header;
             marker.ns = "my_namespace";
             marker.lifetime = ros::Duration(life_time);
+            // marker.type = visualization_msgs::Marker::ARROW;
+            // marker.type = visualization_msgs::Marker::SPHERE;
+            marker.action = visualization_msgs::Marker::ADD;
+            int marker_size=0;
+            marker_size = (int)open_node.size()+(int)closed_node.size() + 3;
+            markerArray.markers.resize(marker_size);
+            ROS_INFO("Node:markerArray.markers.size():%d",(int)markerArray.markers.size());
+            //
+            //
+            marker.scale.y = 0.05;
+            marker.scale.z = 0.05;
+
+            marker.type = visualization_msgs::Marker::ARROW;
+            int count = 0;
+            for(int i=0;i<open_node.size();i++){
+                marker.color.a = 1.0;
+                marker.color.r = 1.0;
+                marker.color.g = 1.0;
+                marker.color.b = 1.0;
+                marker.scale.x = 0.05;
+                marker.scale.y = 0.02;
+                marker.scale.z = 0.02;
+                std::string namespace_str = "depth: ";
+                namespace_str = namespace_str + std::to_string(open_node[i].depth);
+                namespace_str = namespace_str + std::string("Open");
+                marker.ns = namespace_str;
+                marker.pose.position.x = open_node[i].dy;
+                marker.pose.position.y = -open_node[i].dx;
+                marker.pose.position.z = 0;
+                double yaw = open_node[i].angle;
+                marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw-M_PI_2);
+                if(best_node.num == open_node[i].num){
+                    namespace_str = std::string("best");
+                    marker.ns = namespace_str;
+                    marker.scale.x = 0.2;
+                    marker.scale.y = 0.05;
+                    marker.scale.z = 0.05;
+                    marker.color.r = 0.0;
+                    marker.color.g = 1.0;
+                    marker.color.b = 1.0;
+                }
+                else if(i%(sparse_rate)!= 0 ){
+                    continue;
+                }
+                marker.id = count;
+                markerArray.markers[count++] = marker;
+                
+            }
+            marker.scale.x = 0.15;
+            marker.color.a = 1.0;
+            marker.color.r = 1.0;
+            marker.color.g = 0.0;
+            marker.color.b = 0.0;
+            marker.type = visualization_msgs::Marker::ARROW;
+            for(int i=0;i<closed_node.size();i++){
+                std::string namespace_str = "depth: ";
+                namespace_str = namespace_str + std::to_string(closed_node[i].depth);
+                namespace_str = namespace_str + std::string("Closed");
+                marker.ns = namespace_str;
+                marker.pose.position.x = closed_node[i].dy;
+                marker.pose.position.y = -closed_node[i].dx;
+                marker.pose.position.z = 0;
+                double yaw = closed_node[i].angle;
+                marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw-M_PI_2);
+                marker.id = count;
+                markerArray.markers[count++] = marker;
+                
+            }
+            //最終的な命令方向を
+            marker.scale.x = 0.2;
+            marker.color.a = 1.0;
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 0.0;
+            marker.ns =std::string("target_vec");
+            marker.pose.position.x = 0;
+            marker.pose.position.y = 0;
+            marker.pose.position.z = 0;
+            double yaw = target_angle;
+            marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw-M_PI_2);
+            marker.id = count;
+            markerArray.markers[count++] = marker;
+            //
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 1.0;
+            marker.ns = "text";
+            marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+            marker.text = "v,ang:("+ std::to_string(target_vel) +","+ std::to_string(target_angle*180/M_PI)+")" ;
+            marker.scale.x = 0.5;
+            marker.scale.y = 0.5;
+            marker.scale.z = 0.3;
+            marker.pose.position.z =- 0.5;
+            marker.id = count;
+            markerArray.markers[count++] = marker;
+            //ゴール
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 1.0;
+            marker.ns = "goal";
+            marker.type = visualization_msgs::Marker::SPHERE;
+            marker.scale.x = 0.5;
+            marker.scale.y = 0.5;
+            marker.scale.z = 0.5;
+            marker.pose.position.x = relationOdom.pose.pose.position.x;
+            marker.pose.position.y = relationOdom.pose.pose.position.y;
+            marker.pose.position.z = 0;
+            marker.id = count;
+            markerArray.markers[count++] = marker;
+            //
+            markerArray.markers.resize(count);
+            ROS_INFO("Comp:markerArray.markers.size():%d",(int)markerArray.markers.size());
+            if(markerArray.markers.size()){
+                pubDebugNode.publish( markerArray );
+            }   
+        }
+        void display_all_node(const local_navigation::ClassificationVelocityData& temp_clstr, const std::vector<cost_node>& open_node,const std::vector<cost_node>& closed_node){
+            //マーカー表示
+            visualization_msgs::MarkerArray markerArray;
+            visualization_msgs::Marker marker;
+            marker.header.frame_id= "base_link";//temp_clstr.header;
+            std::cout<<"frame_id = "<<temp_clstr.header.frame_id<<std::endl;
+            marker.ns = "my_namespace";
+            marker.lifetime = ros::Duration(marker_life_time);
             // marker.type = visualization_msgs::Marker::ARROW;
             // marker.type = visualization_msgs::Marker::SPHERE;
             marker.action = visualization_msgs::Marker::ADD;
