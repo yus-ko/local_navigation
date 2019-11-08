@@ -259,7 +259,18 @@ class run{
         }
         //メインループ
         void main_loop(){
-            // ROS_INFO("main_loop");
+            ROS_INFO("main_loop");
+            //仮
+            // tf::Quaternion quat;
+            // quat=tf::createQuaternionFromYaw(M_PI_2);
+            // geometry_msgs::Quaternion geoQua;
+            // quaternionTFToMsg(quat, geoQua);
+            // ROS_INFO_STREAM("quaternion ="<<std::endl
+            //     <<geoQua.x<<std::endl
+            //     <<geoQua.y<<std::endl
+            //     <<geoQua.z<<std::endl
+            //     <<geoQua.w<<std::endl
+            // );
             if(data_check()){
                 ROS_INFO("data_check");
                 update_goal_position();
@@ -272,9 +283,7 @@ class run{
         }
         bool data_check(){
             return(
-                RECEIVED_CLUSTER 
-                && RECEIVED_GOAL_ODOM 
-                && RECEIVED_ROBOT_ODOM 
+                RECEIVED_CLUSTER&& RECEIVED_GOAL_ODOM&& RECEIVED_ROBOT_ODOM 
                 // && RECEIVED_ROBOT_ENCODAR
             );
         }
@@ -293,21 +302,41 @@ class run{
             // tf::StampedTransform req_to_cam;
             // listener_.lookupTransform(req.base_frame, p->header.frame_id, ros::Time(0), req_to_cam);
             //面倒なので位置の差と回転行列だけで良さそう
+
             //位置差
+            // std::cout<<goalOdom.pose.pose.position.x<<","<<goalOdom.pose.pose.position.y<<","<<goalOdom.pose.pose.position.z<<std::endl;
+            // std::cout<<robotOdom.pose.pose.position.x<<","<<robotOdom.pose.pose.position.y<<","<<robotOdom.pose.pose.position.z<<std::endl;
+
             relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.x - robotOdom.pose.pose.position.x;
             relationOdom.pose.pose.position.y = goalOdom.pose.pose.position.y - robotOdom.pose.pose.position.y;
             relationOdom.pose.pose.position.z = goalOdom.pose.pose.position.z - robotOdom.pose.pose.position.z;
-            //角度差はロボット姿勢角度
+            // tf::Quaternion quatGoal=tf::createQuaternionFromYaw(M_PI_2);//debugRobotYaw-M_PI_2);
+            // quaternionTFToMsg(quatGoal, goalOdom.pose.pose.orientation);
+            //角度差はロボット姿勢角度 
             tf::Quaternion quat;
             double r,p,y;
             quaternionMsgToTF(robotOdom.pose.pose.orientation, quat);
             tf::Matrix3x3(quat).getRPY(r, p, y);
+            //ロボット座標系の軸を揃える
+            y += M_PI_2;//90deg回転
+
             double theta_goal = atan2(relationOdom.pose.pose.position.y,relationOdom.pose.pose.position.x);
             double theta_robot = y;
+            // std::cout<<"theta_goal - theta_robot = "<<theta_goal - theta_robot<<std::endl;
             double theta_relation = theta_goal - theta_robot;
             double length = std::sqrt(std::pow(relationOdom.pose.pose.position.x,2.0) + std::pow(relationOdom.pose.pose.position.y,2.0));
+            //グロ-バル座標軸で算出
+            // std::cout<< length <<"*"<< "cos("<<theta_relation<<");"<<std::endl;
+            // std::cout<< length <<"*"<< cos(theta_relation)<<";"<<std::endl;
             relationOdom.pose.pose.position.x = length * cos(theta_relation);
             relationOdom.pose.pose.position.y = length * sin(theta_relation);
+            relationOdom.pose.pose.position.z = 0;
+            // std::cout<< length <<"*"<< "sin("<<theta_relation<<");"<<std::endl;
+            // std::cout<< length <<"*"<< sin(theta_relation)<<";"<<std::endl;
+            // std::cout<<"relationOdom.pose.pose.position.x="<< length * cos(theta_relation)<<std::endl;
+            // std::cout<<"relationOdom.pose.pose.position.y="<< length * sin(theta_relation)<<std::endl;
+            // std::cout<<"relationOdom.pose.pose.position.x="<< relationOdom.pose.pose.position.x<<std::endl;
+            // std::cout<<"relationOdom.pose.pose.position.y="<< relationOdom.pose.pose.position.y<<std::endl;
             quat=tf::createQuaternionFromYaw(theta_relation);
             quaternionTFToMsg(quat, relationOdom.pose.pose.orientation);
         }
@@ -317,26 +346,39 @@ class run{
             vfhTDT.clear_node();
             //スタートノードとゴールノードをセット
             vfhTDT.create_start_node();//
-            vfhTDT.create_goal_node(-relationOdom.pose.pose.position.y,relationOdom.pose.pose.position.x);//
+            // std::cout<<"hoge"<<std::endl;
+            // std::cout<<"relationOdom.pose.pose.position.x="<< relationOdom.pose.pose.position.x<<std::endl;
+            // std::cout<<"relationOdom.pose.pose.position.y="<< relationOdom.pose.pose.position.y<<std::endl;
+            std::cout<<"create_goal_node("<< -relationOdom.pose.pose.position.y<<","<< relationOdom.pose.pose.position.x<<");"<<std::endl;
+            double goal_x = -relationOdom.pose.pose.position.y;
+            double goal_y = relationOdom.pose.pose.position.x;
+            vfhTDT.create_goal_node(goal_x ,goal_y);//
             //スタートノードをオープンリストに追加
+            std::cout<<"create_goal_node"<<std::endl;
             vfhTDT.add_start_node();
             //A*アルゴリズムで探索を行っていく
             int best_node_num;
             int target_num;
+            std::cout<<"add_start_node"<<std::endl;
             while(ros::ok()){
                 //最小コストとなるノード番号を取得
+                ROS_INFO("get_min_cost_node");
                 int node_num = vfhTDT.get_min_cost_node();
+                ROS_INFO("check_search_finish");
                 if(vfhTDT.check_search_finish()){
                     best_node_num = node_num;
                     break;
                 }
+                ROS_INFO("add_node");
                 //最小コストノードの子ノードを作成
                 vfhTDT.add_node(vfhTDT.get_node(0));//先頭ノードを取得
                 // 
-                // ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
+                ROS_INFO("Node:(open,closed):(%d,%d)",vfhTDT.get_open_node_size(), vfhTDT.get_closed_node_size());
             }
             //
+            std::cout<<"cobine_open_close_node"<<std::endl;
             vfhTDT.cobine_open_close_node();
+            std::cout<<"search_node_n"<<std::endl;
             target_num = vfhTDT.search_node_n(best_node_num);
             //最良ノードを格納
             best_node = vfhTDT.get_node(target_num);
@@ -618,7 +660,7 @@ class run{
             // marker.type = visualization_msgs::Marker::SPHERE;
             marker.action = visualization_msgs::Marker::ADD;
             int marker_size=0;
-            marker_size = (int)open_node.size()+(int)closed_node.size() + 2;
+            marker_size = (int)open_node.size()+(int)closed_node.size() + 3;
             markerArray.markers.resize(marker_size);
             ROS_INFO("Node:markerArray.markers.size():%d",(int)markerArray.markers.size());
             //

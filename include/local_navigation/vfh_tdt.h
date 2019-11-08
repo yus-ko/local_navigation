@@ -7,12 +7,12 @@ struct cost_node{
     int num;//ノード番号
     int parent_node;//親ノード
     int depth;//ノードの深さ
-    float dx;//始点ノードからの移動距離x
-    float dy;//始点ノードからの移動距離y
-    float target_angle;//目標角度
-    float delta_angle;//親ノードで選択した角度変化量angle
-    float angle;//ノードの角度
-    float v;//ロボットの速度
+    double dx;//始点ノードからの移動距離x
+    double dy;//始点ノードからの移動距離y
+    double target_angle;//目標角度
+    double delta_angle;//親ノードで選択した角度変化量angle
+    double angle;//ノードの角度
+    double v;//ロボットの速度
     double cost;//総コスト
 };
 class vfh_tdt : public vfh
@@ -133,6 +133,18 @@ class vfh_tdt : public vfh
             startNode.cost = 0;
         }
         void create_goal_node(float goal_x, float goal_y){
+            goalNode.num = -1;
+            goalNode.parent_node = -1;
+            goalNode.depth = 0;
+            goalNode.dx = goal_x;
+            goalNode.dy = goal_y;
+            startNode.target_angle = M_PI_2;
+            goalNode.delta_angle = 0;
+            goalNode.angle = M_PI_2;
+            goalNode.v = initVel;
+            goalNode.cost = 0;
+        }
+        void create_goal_node(double goal_x, double goal_y){
             goalNode.num = -1;
             goalNode.parent_node = -1;
             goalNode.depth = 0;
