@@ -1,13 +1,17 @@
 <launch>
   <!-- rqt_reconfigure -->
   <arg name="obstacleAvoidance/rqt_reconfigure" default="true"/>
+  <!-- 探索種類 -->
+  <arg name="obstacleAvoidance/SEARCH_ONLY_ANGLE" default="false"/>
   <!-- ロボットパラメータ -->
   <arg name="obstacleAvoidance/WheelD" default="0.3125"/>
   <arg name="obstacleAvoidance/angleMin" default="45"/>
   <arg name="obstacleAvoidance/angleMax" default="135"/>
   <arg name="obstacleAvoidance/angleDiv" default="1.0"/>
+  <arg name="obstacleAvoidance/maxSpeed" default="0.4"/>
+  <arg name="obstacleAvoidance/defaultSpeed" default="0.2"/>
   <!-- ゴール位置 -->
-  <arg name="obstacleAvoidance/goalX" default="0.0"/>
+  <arg name="obstacleAvoidance/goalX" default="-2.0"/>
   <arg name="obstacleAvoidance/goalY" default="6.0"/>
   <!-- vfh -->
   <!-- vfh - k -->
@@ -21,6 +25,9 @@
   <arg name="obstacleAvoidance/EtaG" default="1"/>
   <arg name="obstacleAvoidance/EtaCurAngle" default="1"/>
   <arg name="obstacleAvoidance/EtaPrevAngle" default="1"/>
+  <!-- 探査範囲 -->
+  <arg name="obstacleAvoidance/searchRange_vel" default="0.2"/>
+  <arg name="obstacleAvoidance/searchDiv_vel" default="0.02"/>
   <!-- debug -->
   <arg name="obstacleAvoidance/debugType" default="1"/>
   <arg name="robot_name" default="robot2"/>
@@ -28,11 +35,15 @@
   <node pkg="local_navigation" name="local_navigation_cp_vfh" type="local_navigation_cp_vfh" output="screen" respawn="true">
     <!-- rqt_reconfigure -->
     <param name="obstacleAvoidance/rqt_reconfigure" value="$(arg obstacleAvoidance/rqt_reconfigure)"/>
+    <!-- 探索種類 -->
+    <param name="obstacleAvoidance/SEARCH_ONLY_ANGLE" value="$(arg obstacleAvoidance/SEARCH_ONLY_ANGLE)"/>
     <!-- ロボットパラメータ -->
     <param name="obstacleAvoidance/WheelD" value="$(arg obstacleAvoidance/WheelD)"/>
     <param name="obstacleAvoidance/angleMin" value="$(arg obstacleAvoidance/angleMin)"/>
     <param name="obstacleAvoidance/angleMax" value="$(arg obstacleAvoidance/angleMax)"/>
     <param name="obstacleAvoidance/angleDiv" value="$(arg obstacleAvoidance/angleDiv)"/>
+    <param name="obstacleAvoidance/maxSpeed" value="$(arg obstacleAvoidance/maxSpeed)"/>
+    <param name="obstacleAvoidance/defaultSpeed" value="$(arg obstacleAvoidance/defaultSpeed)"/>
     <!-- ゴール位置 -->
     <param name="obstacleAvoidance/goalX" value="$(arg obstacleAvoidance/goalX)"/>
     <param name="obstacleAvoidance/goalY" value="$(arg obstacleAvoidance/goalY)"/>
@@ -48,6 +59,9 @@
     <param name="obstacleAvoidance/EtaG" value="$(arg obstacleAvoidance/EtaG)"/>
     <param name="obstacleAvoidance/EtaCurAngle" value="$(arg obstacleAvoidance/EtaCurAngle)"/>
     <param name="obstacleAvoidance/EtaPrevAngle" value="$(arg obstacleAvoidance/EtaPrevAngle)"/>
+    <!-- 探査範囲 -->
+    <param name="obstacleAvoidance/searchRange_vel" value="$(arg obstacleAvoidance/searchRange_vel)"/>
+    <param name="obstacleAvoidance/searchDiv_vel" value="$(arg obstacleAvoidance/searchDiv_vel)"/>
     <!-- debug -->
     <param name="obstacleAvoidance/debugType" value="$(arg obstacleAvoidance/debugType)"/>
   </node>

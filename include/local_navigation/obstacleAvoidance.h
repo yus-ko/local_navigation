@@ -28,18 +28,31 @@ class obstacleAvoidance{
     private:
         //受信データ
 		ros::NodeHandle nhSub1;
-		ros::Subscriber sub1,sub2,sub3;
+		ros::Subscriber sub1,sub2,sub3,sub4;
     	local_navigation::ClassificationVelocityData clstr;//速度データ付きのクラスタデータ
-        nav_msgs::Odometry robotOdom,goalOdom;
+        nav_msgs::Odometry robotOdom,goalOdom,relationOdom;
         beego_control::beego_encoder robotEncoder;
         //送信データ
 		ros::NodeHandle nhPub;
         ros::Publisher pub;
         // 処理
+		bool RECEIVED_CLUSTER;
+        bool RECEIVED_GOAL_ODOM;
+        bool RECEIVED_ROBOT_ODOM ;
+		bool RECEIVED_ROBOT_ENCODAR;
+        bool SEARCH_ONLY_ANGLE;
+        double MAX_COST;
+        //時間
+        ros::Time cur_time,pre_time;
+        ros::Duration delta_time_ros;
+        double delta_time;
+        bool PROCESS_ONCE;
         //launch ファイル
         //--ロボットパラメータ
         float d;//車輪間隔の半分
         float robotRadius;//ロボット半径
+        float max_speed;
+        float default_speed;
         //--vfh
         float marginRadius;//マージン半径
         float dis_th;//距離ヒストグラムの閾値
@@ -47,6 +60,8 @@ class obstacleAvoidance{
         float k_g, eta_g;//ゴール位置への角度と目標角度に対する重み
         float k_curAngle, eta_curAngle;//現在の角度と目標角度に対する重み
         float k_prevAngle, eta_prevAngle;//現在の角速度と目標角速度に対する重み
+        float k_vel,eta_vel;//速度加減速に対する重み
+        float safe_range;
         //
     	std::vector<crossPoint> crsPts;
         float goal_x, goal_y;
@@ -150,8 +165,13 @@ class obstacleAvoidance{
         void configCallback(local_navigation::obstacleAvoidanceConfig &config, uint32_t level);
         void update_goal_position();
         //処理
+        bool data_check();
+        void data_check_reset();
+        void get_time();
+        bool culc_delta_time();
         crossPoint getCrossPoint(int& cp_num, std::vector<crossPoint>& crsPts, int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cur_vel, float& cmd_dV, float& cmd_dAng);
         void getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y0, int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cur_vel, float& cur_ang, float& cmd_dV, float& cmd_ang);
+        double getDeltaVelCost(float& cmd_dV_temp, float& eta_vel_temp,float& cur_vel_temp);
         void crossPointsDetect(float& cmd_vel, float& cmd_angle);
         void crossPointsDetect(std::vector<crossPoint>& crsPts, float& cur_vel_temp, float& cur_angle_temp, float& cmd_dV, float& cmd_dAng);
         float generalCostFunction(float& eta, float& value);
@@ -159,8 +179,9 @@ class obstacleAvoidance{
         double getCrossPointCost(std::vector<crossPoint>& crsPts, float eta_cp);//交差位置コスト
         bool checkSafetyObstacle(float& t, float& angle, float& x, float& y);
         void searchProcess(float& tagVel, float& tagAng);
-        void search_vel_ang(float& target_vel, float& target_angle);        
-        float vfh_angleSearch(float& target_angle_temp, float& cur_vel_temp, float& cmd_dV);//return cost
+        void search_vel_ang(float& target_angle, float& cur_vel_temp, float& cmd_dV);        
+        double vfh_angleSearch(float& target_angle_temp, float& cur_vel_temp, float& cmd_dV);//return cost
+        double vfh_angleSearch_nondeb(float& target_angle_temp, float& cur_vel_temp, float& cmd_dV ,std::vector<crossPoint>& min_cost_crsPts_temp );//return cost
         void setCmdVel();
         void setCmdAngle();
         geometry_msgs::Twist controler(float& tagVel, float& tagAng);

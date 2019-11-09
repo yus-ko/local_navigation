@@ -172,13 +172,13 @@ class run{
             	clstr = *msg;
                 vfhTDT.set_cluster_data(clstr);
                 RECEIVED_CLUSTER = true;
-                main_loop();
+                main_process();
         }
         void robotOdom_callback(const nav_msgs::Odometry::ConstPtr& msg){
             //データをコピー
         	robotOdom = *msg;
             RECEIVED_ROBOT_ODOM = true;
-            main_loop();
+            main_process();
         }
         void robotEncoder_callback(const beego_control::beego_encoder::ConstPtr& msg){
             //データをコピー
@@ -186,13 +186,13 @@ class run{
             cur_vel = (robotEncoder.vel.r + robotEncoder.vel.l)/2;
             cur_angVel = (robotEncoder.vel.r - robotEncoder.vel.l)/( d);
             RECEIVED_ROBOT_ENCODAR = true;
-            main_loop();
+            main_process();
         }
         void goalOdom_callback(const nav_msgs::Odometry::ConstPtr& msg){
             //データをコピー
         	goalOdom = *msg;
             RECEIVED_GOAL_ODOM = true;
-            main_loop();
+            main_process();
         }
         //--rqt_reconfigureからの読み込み
         void configCallback(local_navigation::vfh_tdtConfig &config, uint32_t level){
@@ -268,11 +268,11 @@ class run{
                 run_debug_process();//処理
                 return ;
             }
-            // main_loop();
+            // main_process();
         }
         //メインループ
-        void main_loop(){
-            ROS_INFO("main_loop");
+        void main_process(){
+            ROS_INFO("main_process");
             //仮
             // tf::Quaternion quat;
             // quat=tf::createQuaternionFromYaw(M_PI_2);
@@ -285,17 +285,17 @@ class run{
             //     <<geoQua.w<<std::endl
             // );
             if(data_check()){
+                ROS_INFO("data_check");
                 get_time();
+                data_check_reset();
+                ROS_INFO("data_check_reset");
                 if(!culc_delta_time()){
                     return;
                 }
-                ROS_INFO("data_check");
                 trans_obstacle_velocity();
                 ROS_INFO("trans_obstacle_velocity");
                 update_goal_position();
                 ROS_INFO("update_goal_position");
-                data_check_reset();
-                ROS_INFO("data_check_reset");
                 process();
                 ROS_INFO("process");
                 publish_cmd_vel();
@@ -335,7 +335,7 @@ class run{
                 clstr.twist[i].linear.y = clstr.twist[i].linear.y + vy_r;
             }
         }
-        bool data_check_reset(){
+        void data_check_reset(){
             RECEIVED_CLUSTER = false;
             RECEIVED_ROBOT_ODOM = false;
             RECEIVED_ROBOT_ENCODAR = false;
@@ -995,7 +995,7 @@ class run{
             //
             marker.scale.y = 0.05;
             marker.scale.z = 0.05;
-
+            
             marker.type = visualization_msgs::Marker::ARROW;
             int count = 0;
             for(int i=0;i<open_node.size();i++){

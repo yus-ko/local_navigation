@@ -3,14 +3,18 @@
 void obstacleAvoidance::setLaunchParam(){
     
     ros::NodeHandle n("~");
+	n.getParam("obstacleAvoidance/SEARCH_ONLY_ANGLE",SEARCH_ONLY_ANGLE);    
 	//ロボットパラメータ
 	n.getParam("obstacleAvoidance/WheelD",d);
     n.getParam("obstacleAvoidance/angleMin", angle_min);
     n.getParam("obstacleAvoidance/angleMax", angle_max);
     n.getParam("obstacleAvoidance/angleDiv", angle_div);
+    n.getParam("obstacleAvoidance/maxSpeed", max_speed);
+    n.getParam("obstacleAvoidance/defaultSpeed", default_speed);
     //ゴール位置
     n.getParam("obstacleAvoidance/goalX", goal_x);
     n.getParam("obstacleAvoidance/goalY", goal_y);
+	RECEIVED_GOAL_ODOM = true;//検討中
     //vfh
     //--k
     n.getParam("obstacleAvoidance/marginRadius", marginRadius);
@@ -23,6 +27,9 @@ void obstacleAvoidance::setLaunchParam(){
     n.getParam("obstacleAvoidance/EtaG",eta_g);
     n.getParam("obstacleAvoidance/EtaCurAngle",eta_curAngle);
     n.getParam("obstacleAvoidance/EtaPrevAngle",eta_prevAngle);
+    //探査範囲
+    n.getParam("obstacleAvoidance/searchRange_vel",dV_range);
+    n.getParam("obstacleAvoidance/searchDiv_vel",dV_div);
     //デバッグ
     n.getParam("obstacleAvoidance/debugType",debugType);
 }
@@ -39,11 +46,15 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     k_g = config.Kg;
     k_curAngle = config.KcurAngle;
     k_prevAngle = config.KprevAngle;
+    k_vel = config.Kv;
 	//コスト関数のパラメータ
     eta_cp = config.EtaCp;
     eta_g = config.EtaG;
     eta_curAngle = config.EtaCurAngle;
     eta_prevAngle = config.EtaPrevAngle;
+    eta_vel = config.EtaVel;
+    //
+    safe_range = config.safeRange;
 	//デバッグ
     debugType = config.debugType;
     //クロスポイントチェッカー

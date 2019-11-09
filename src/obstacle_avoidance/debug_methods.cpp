@@ -92,7 +92,7 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
     marker.lifetime = ros::Duration(0.3);
     marker.type = visualization_msgs::Marker::ARROW;
     marker.action = visualization_msgs::Marker::ADD;
-    markerArray.markers.resize((int)crsPts.size() + (int)clstr.data.size() + 2+10);
+    markerArray.markers.resize((int)crsPts.size() + (int)clstr.data.size() + 2+10 +1);
     int count = 0;
     for(int k=0; k<clstr.data.size(); k++){
         marker.ns = "obstacle_vec";
@@ -191,6 +191,22 @@ void obstacleAvoidance::showOutPut(std::vector<crossPoint>& crsPts, float v, int
     marker.pose.position.z = 0.5;
     marker.id = count;
     markerArray.markers[count++] = marker;
+    //
+    //ゴール
+    marker.color.r = 1.0;
+    marker.color.g = 1.0;
+    marker.color.b = 1.0;
+    marker.ns = "goal";
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.5;
+    marker.pose.position.x = relationOdom.pose.pose.position.x;
+    marker.pose.position.y = relationOdom.pose.pose.position.y;
+    marker.pose.position.z = relationOdom.pose.pose.position.z;
+    marker.id = count;
+    markerArray.markers[count++] = marker;
+
     //
     markerArray.markers.resize(count);
     if(markerArray.markers.size()){

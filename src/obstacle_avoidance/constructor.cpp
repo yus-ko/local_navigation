@@ -1,13 +1,16 @@
 ﻿#include<local_navigation/obstacleAvoidance.h>
 
 obstacleAvoidance::obstacleAvoidance()
-	:d(0.3145),angle_min(45),angle_max(135), angle_div(1.0)
+	:d(0.3145),angle_min(45),angle_max(135), angle_div(1.0),
+	RECEIVED_CLUSTER(false),RECEIVED_GOAL_ODOM(false),RECEIVED_ROBOT_ODOM(false),
+	SEARCH_ONLY_ANGLE(false),MAX_COST(900000)
 {
 	//ROS_INFO("subscriber define");
 	//subscriber
 	sub1=nhSub1.subscribe("classificationDataEstimateVelocity",1,&obstacleAvoidance::cluster_callback,this);
-	sub2=nhSub1.subscribe("robotOdometry",1,&obstacleAvoidance::robotOdom_callback,this);
+	sub2=nhSub1.subscribe("zed_node/odom",1,&obstacleAvoidance::robotOdom_callback,this);
 	sub3=nhSub1.subscribe("goalOdometry",1,&obstacleAvoidance::goalOdom_callback,this);
+	sub4=nhSub1.subscribe("encoder",1,&obstacleAvoidance::robotEncoder_callback,this);
 	//publisher
 	//ROS_INFO("publisher define");
     pub= nhPub.advertise<geometry_msgs::Twist>("cmd_vel", 1);
