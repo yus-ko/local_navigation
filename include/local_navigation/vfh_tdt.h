@@ -367,6 +367,63 @@ class vfh_tdt : public vfh
             ROS_INFO("selectNodeNum:%d",selectNodeNum);
             return selectNodeNum;            
         }
+        int search_node_n(int& min_node_num, std::vector<int>& nextNodeIndex){
+            //conbineNodeからノードをさかのぼり, 
+            //最終的な目標位置, 角度を取得
+            nextNodeIndex.clear();
+            cost_node min_node = conbineNode[min_node_num];
+            int nodeNum = min_node.num;
+            int preNodeNum = min_node.parent_node;
+            int selectNodeNum;
+            // std::vector<int> nextNodeIndex;
+            nextNodeIndex.reserve(node_depth+1);
+            //先頭から挿入
+            auto it = nextNodeIndex.begin();
+            it = nextNodeIndex.insert(it, nodeNum);
+            //先頭からのインデックスを作成
+            while (preNodeNum != 0)
+            {
+                //親ノードを取得
+                // ROS_INFO("node[%d] --> node[%d]: (%f,%f,%f)-->(%f,%f,%f)",
+                //     nodeNum,preNodeNum,
+                //     conbineNode[nodeNum].dx, conbineNode[nodeNum].dy, conbineNode[nodeNum].angle,
+                //     conbineNode[preNodeNum].dx, conbineNode[preNodeNum].dy, conbineNode[preNodeNum].angle
+                // );
+                nodeNum = conbineNode[preNodeNum].num;
+                it = nextNodeIndex.insert(it, nodeNum);
+                preNodeNum = conbineNode[preNodeNum].parent_node;
+            }
+            //先頭ノード0から最小コストノードまでのインデックスが完成
+            //nextNodeIndex[0]:深さ1のノード -> nextNodeIndex[1]:深さ2のノード...
+            for(int k=0; k<nextNodeIndex.size();k++){
+                //条件に合うノードまで進める
+                int nodeNum = nextNodeIndex[k];
+                //
+                std::cout<<"to node "<<nodeNum <<":"<<std::endl
+                    <<"\tparent: "<<conbineNode[nodeNum].parent_node<<std::endl
+                    <<"\tnum: "<<conbineNode[nodeNum].num<<std::endl
+                    <<"\tdepth: "<<conbineNode[nodeNum].depth<<std::endl
+                    <<"\tdx,dy: "<<conbineNode[nodeNum].dx<<","<<conbineNode[nodeNum].dy<<std::endl
+                    <<"\tv,ang: "<<conbineNode[nodeNum].v<<","<<conbineNode[nodeNum].angle<<std::endl
+                    <<"\tangT,angD: "<<conbineNode[nodeNum].target_angle<<","<<conbineNode[nodeNum].delta_angle<<std::endl
+                    <<"\tcost: "<<conbineNode[nodeNum].cost<<std::endl
+                    <<"\tgoal: "<<goalNode.dx-conbineNode[nodeNum].dx<<", "<<goalNode.dy-conbineNode[nodeNum].dy<<", "<<atan2(goalNode.dy-conbineNode[nodeNum].dy, goalNode.dx-conbineNode[nodeNum].dx)<<std::endl
+                <<std::endl;
+                //
+                //条件を超える角度の時
+                if(conbineNode[nodeNum].angle > angleThresholdMax || conbineNode[nodeNum].angle < angleThresholdMin){
+                    selectNodeNum = conbineNode[nodeNum].parent_node;//1つ前のノードがベスト
+                    //探索終了
+                    ROS_INFO("inIf selectNodeNum:%d",selectNodeNum);
+                    return selectNodeNum;
+                }
+            }
+            //最後のノードまで条件を超えなかった時
+            selectNodeNum = conbineNode[nextNodeIndex[(int)nextNodeIndex.size() - 1]].num;//
+            ROS_INFO("selectNodeNum:%d",selectNodeNum);
+            return selectNodeNum;            
+        }
+
         //protected vfh class method
         // create binary histgram
         void create_binary_histgram(cost_node& pNode, float& robotRadius, float& marginRadius){
@@ -548,6 +605,7 @@ class vfh_tdt : public vfh
                 //各クラスタに含まれる点群を取得しヒストグラムを作成
                 for(int m = 0; m < debug_clstr.data[k].pt.size(); m++){
                     //障害物
+                    // std::cout<< debug_clstr.data[k].pt[m].x<<","<< debug_clstr.data[k].pt[m].y<<std::endl;
                     float point_x = debug_clstr.data[k].pt[m].x + debug_clstr.twist[k].linear.x * ds/pNode.v*pNode.depth;
                     float point_y = debug_clstr.data[k].pt[m].y + debug_clstr.twist[k].linear.y * ds/pNode.v*pNode.depth;
                     float point_difx = point_x - point_xr;

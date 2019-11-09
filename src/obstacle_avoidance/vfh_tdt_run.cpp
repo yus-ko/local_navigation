@@ -21,6 +21,10 @@ class run{
         float goal_x,goal_y;
         float d;//wheels radius
         float cur_vel, cur_angVel;
+        ros::Time cur_time,pre_time;
+        ros::Duration delta_time_ros;
+        double delta_time;
+        bool PROCESS_ONCE;
         //rqt_reconfigure
         bool rqt_reconfigure;//rqt_reconfigureを使用するか
         dynamic_reconfigure::Server<local_navigation::vfh_tdtConfig> server;
@@ -48,6 +52,7 @@ class run{
         float display_fps;
         bool display_searching_process;
         int sparse_rate;
+        std::vector<int> debugNextNodeIndex;
         //表示用publisher
         ros::NodeHandle nhPubDeb;
         ros::Publisher pubDebugClstr,pubDebugNode;    
@@ -64,7 +69,8 @@ class run{
         //--obstacle
         float debugObstacleX1;
         float debugObstacleY1;
-        float debugObstacleSize1;
+        float debugObstacleW1;
+        float debugObstacleH1;
         float debugObstacleVx1;
         float debugObstacleVy1;
         float debugObstacleX2;
@@ -78,7 +84,7 @@ class run{
     public:
         run()
             :RECEIVED_CLUSTER(false),RECEIVED_GOAL_ODOM(false),RECEIVED_ROBOT_ODOM(false),
-            debug_seq(0)
+            debug_seq(0),PROCESS_ONCE(false)
         {
             //subscriber
             sub1=nhSub1.subscribe("classificationDataEstimateVelocity",1,&run::cluster_callback,this);
@@ -89,6 +95,7 @@ class run{
             pubDebugClstr = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_clstr", 1);
             pubDebugNode = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_node", 1);
             //
+            read_launch_file();
             //rqt_reconfigure
             f = boost::bind(&run::configCallback, this, _1, _2);
             server.setCallback(f);
@@ -177,7 +184,7 @@ class run{
             //データをコピー
             robotEncoder = *msg;
             cur_vel = (robotEncoder.vel.r + robotEncoder.vel.l)/2;
-            cur_angVel = (robotEncoder.vel.r - robotEncoder.vel.l)/(2 * d);
+            cur_angVel = (robotEncoder.vel.r - robotEncoder.vel.l)/( d);
             RECEIVED_ROBOT_ENCODAR = true;
             main_loop();
         }
@@ -278,20 +285,55 @@ class run{
             //     <<geoQua.w<<std::endl
             // );
             if(data_check()){
+                get_time();
+                if(!culc_delta_time()){
+                    return;
+                }
                 ROS_INFO("data_check");
+                trans_obstacle_velocity();
+                ROS_INFO("trans_obstacle_velocity");
                 update_goal_position();
                 ROS_INFO("update_goal_position");
                 data_check_reset();
                 ROS_INFO("data_check_reset");
                 process();
                 ROS_INFO("process");
+                publish_cmd_vel();
             }
         }
         bool data_check(){
             return(
                 RECEIVED_CLUSTER&& RECEIVED_GOAL_ODOM&& RECEIVED_ROBOT_ODOM 
-                // && RECEIVED_ROBOT_ENCODAR
+                && RECEIVED_ROBOT_ENCODAR
             );
+        }
+        void get_time(){
+            cur_time = ros::Time::now();
+        }
+        bool culc_delta_time(){
+            if(!PROCESS_ONCE){
+                delta_time_ros = cur_time - pre_time;
+                delta_time = delta_time_ros.toSec();
+                pre_time = cur_time;
+                PROCESS_ONCE = false;
+                return true;
+            }
+            //
+            else{
+                pre_time = cur_time;
+                PROCESS_ONCE = false;
+                return false;
+            }
+        }
+        void trans_obstacle_velocity(){
+            std::cout<<"v:"<<cur_vel<<", angvel"<<cur_angVel<<std::endl;
+            double vy_r = cur_vel*cos(cur_angVel * delta_time);
+            double vx_r = -cur_vel*sin(cur_angVel * delta_time);
+            std::cout<<"vr:("<<vx_r<<","<<vy_r<<std::endl;
+            for(int i = 0; i<clstr.twist.size();i++){
+                clstr.twist[i].linear.x = clstr.twist[i].linear.x + vx_r;
+                clstr.twist[i].linear.y = clstr.twist[i].linear.y + vy_r;
+            }
         }
         bool data_check_reset(){
             RECEIVED_CLUSTER = false;
@@ -409,6 +451,10 @@ class run{
             display_all_node(clstr,vfhTDT.get_open_node(), vfhTDT.get_closed_node());
             display_clstr(clstr);
         }
+        void publish_cmd_vel(){
+            geometry_msgs::Twist cmd_vel = controler(target_vel,target_angle);
+            pub.publish(cmd_vel);
+        }
         geometry_msgs::Twist controler(float& tagVel, float& tagAng){
             //p制御
             double cur_ang = M_PI_2;//正面を向いているため
@@ -449,7 +495,8 @@ class run{
             //obstacle
             debugObstacleX1 = config.debugObstacleX1;
             debugObstacleY1 = config.debugObstacleY1;
-            debugObstacleSize1 = config.debugObstacleSize1;
+            debugObstacleW1 = config.debugObstacleW1;
+            debugObstacleH1 = config.debugObstacleH1;
             debugObstacleVx1 = config.debugObstacleVx1;
             debugObstacleVy1 = config.debugObstacleVy1;
             //obstacle
@@ -507,14 +554,14 @@ class run{
             vfhTDT.clear_node();
             //デバッグクラスタの作成
             create_debug_clstr();
-            ROS_INFO("create_debug_clstr");
+            // ROS_INFO("create_debug_clstr");
             //スタートノードとゴールノードをセット
             vfhTDT.create_start_node();//
             vfhTDT.create_goal_node(-debugRelationOdom.pose.pose.position.y,debugRelationOdom.pose.pose.position.x);//
-            ROS_INFO("create_start_node,create_goal_node");
+            // ROS_INFO("create_start_node,create_goal_node");
             //スタートノードをオープンリストに追加
             vfhTDT.add_start_node();
-            ROS_INFO("add_start_node");
+            // ROS_INFO("add_start_node");
             //A*アルゴリズムで探索を行っていく
             int best_node_num;
             int target_num;
@@ -546,7 +593,7 @@ class run{
             //
             vfhTDT.cobine_open_close_node();
             ROS_INFO("cobine_open_close_node");
-            target_num = vfhTDT.search_node_n(best_node_num);
+            target_num = vfhTDT.search_node_n(best_node_num, debugNextNodeIndex);
             ROS_INFO("search_node_n");
             //最良ノードを格納
             best_node = vfhTDT.get_conbine_node(target_num);
@@ -590,11 +637,23 @@ class run{
             debug_clstr.twist[0].linear.y = debugObstacleVy1;
             debug_clstr.twist[0].linear.z = 0;
             //
-            debug_clstr.data[0].size.data = 1;
-            debug_clstr.data[0].pt.resize(1);
-            debug_clstr.data[0].pt[0].x = debugObstacleX1;
-            debug_clstr.data[0].pt[0].y = debugObstacleY1;
-            debug_clstr.data[0].pt[0].z = 0;
+            double W0_0 = debugObstacleX1 - debugObstacleW1/2;
+            double H0_0 = debugObstacleY1 - debugObstacleH1/2;
+            double W1_0 = debugObstacleX1 + debugObstacleW1/2;
+            double H1_0 = debugObstacleY1 + debugObstacleH1/2;
+            debug_clstr.data[0].size.data = (int)(11*11);
+            debug_clstr.data[0].pt.resize(debug_clstr.data[0].size.data);
+            int count0=0;
+            for(double h =H0_0; h <= H1_0; h+=debugObstacleH1/10.0){
+                for(double w =W0_0; w<= W1_0; w+=debugObstacleW1/10.0){
+                    debug_clstr.data[0].pt[count0].x = w; 
+                    debug_clstr.data[0].pt[count0].y = h; 
+                    debug_clstr.data[0].pt[count0].z = 0;
+
+                    count0++;
+                }
+            }
+            debug_clstr.data[0].pt.resize(count0);
 
             ROS_INFO("gc");
             debug_clstr.data[1].gc.x = debugObstacleX2;
@@ -605,18 +664,23 @@ class run{
             debug_clstr.twist[1].linear.y = debugObstacleVy2;
             debug_clstr.twist[1].linear.z = 0;
             //
-            float W0 = debugObstacleX2 - debugObstacleW2/0.1;
-            float H0 = debugObstacleY2 - debugObstacleH2/0.1;
-            float W1 = debugObstacleX2 + debugObstacleW2/0.1;
-            float H1 = debugObstacleY2 + debugObstacleH2/0.1;
-            debug_clstr.data[1].size.data = (int)((W1 - W0)*(H1 - H0)/0.1/0.1)+1;
+            double W0 = debugObstacleX2 - debugObstacleW2/2;
+            double H0 = debugObstacleY2 - debugObstacleH2/2;
+            double W1 = debugObstacleX2 + debugObstacleW2/2;
+            double H1 = debugObstacleY2 + debugObstacleH2/2;
+            debug_clstr.data[1].size.data = (int)(11*11);
             debug_clstr.data[1].pt.resize(debug_clstr.data[1].size.data);
             int count=0;
-            for(float h =H0; h <= H1; h+=0.1){
-                for(float w =W0; w<= W1; w+=0.1){
+            for(double h =H0; h <= H1; h+=debugObstacleH2/10.0){
+                for(double w =W0; w<= W1; w+=debugObstacleW2/10.0){
                     debug_clstr.data[1].pt[count].x = w; 
                     debug_clstr.data[1].pt[count].y = h; 
                     debug_clstr.data[1].pt[count].z = 0;
+                    // std::cout<<"pt:"<<std::endl
+                    //     <<debug_clstr.data[1].pt[count].x<<std::endl
+                    //     <<debug_clstr.data[1].pt[count].y<<std::endl
+                    //     ;
+
                     count++;
                 }
             }
@@ -769,7 +833,7 @@ class run{
             // marker.type = visualization_msgs::Marker::SPHERE;
             marker.action = visualization_msgs::Marker::ADD;
             int marker_size=0;
-            marker_size = (int)open_node.size()+(int)closed_node.size() + 3;
+            marker_size = (int)open_node.size()+(int)closed_node.size() + 3 + (int)debugNextNodeIndex.size();
             markerArray.markers.resize(marker_size);
             ROS_INFO("Node:markerArray.markers.size():%d",(int)markerArray.markers.size());
             //
@@ -874,6 +938,37 @@ class run{
             marker.id = count;
             markerArray.markers[count++] = marker;
             
+            //debugNextNodeIndex
+            marker.type = visualization_msgs::Marker::ARROW;
+            for(int k=0; k<debugNextNodeIndex.size();k++){
+                //条件に合うノードまで進める
+                int nodeNum = debugNextNodeIndex[k];
+                //
+                //
+                cost_node node_temp = vfhTDT.get_conbine_node(nodeNum);
+                //条件を超える角度の時
+                if(node_temp.angle > M_PI_2 + M_PI_4 || node_temp.angle < M_PI_2 - M_PI_4){
+                    //探索終了
+                    break;
+                }
+                else{
+                    marker.pose.position.x = node_temp.dy;
+                    marker.pose.position.y = -node_temp.dx;
+                    marker.pose.position.z = 0;
+                    double y = node_temp.angle;
+                    marker.pose.orientation = tf::createQuaternionMsgFromYaw(y-M_PI_2);
+                    marker.scale.x = 0.2;
+                    marker.scale.y = 0.05;
+                    marker.scale.z = 0.05;
+                    marker.color.a = 1.0;
+                    marker.color.r = 1.0;
+                    marker.color.g = 1.0;
+                    marker.color.b = 0.0;
+                    marker.id = count;
+                    markerArray.markers[count++] = marker;
+
+                }
+            }
             //
             markerArray.markers.resize(count);
             ROS_INFO("Comp:markerArray.markers.size():%d",(int)markerArray.markers.size());
