@@ -1,0 +1,27 @@
+<launch>
+  <!-- ロボットパラメータ -->
+  <arg name="simulater/WheelD" default="0.3125"/>
+  <arg name="simulater/angleMin" default="45"/>
+  <arg name="simulater/angleMax" default="135"/>
+  <arg name="simulater/angleDiv" default="1.0"/>
+  <arg name="simulater/maxSpeed" default="0.4"/>]
+  <arg name="simulater/defaultSpeed" default="0.2"/>
+  <!-- ゴール位置 -->
+  <arg name="simulater/goalX" default="-2.0"/>
+  <arg name="simulater/goalY" default="6.0"/>
+  <arg name="robot_name" default="robot2"/>
+  <group ns="$(arg robot_name)">
+  <node pkg="local_navigation" name="local_navigation_simulater" type="local_navigation_simulater" output="screen" respawn="false">
+    <!-- ロボットパラメータ -->
+    <param name="simulater/WheelD" value="$(arg simulater/WheelD)"/>
+    <param name="simulater/angleMin" value="$(arg simulater/angleMin)"/>
+    <param name="simulater/angleMax" value="$(arg simulater/angleMax)"/>
+    <param name="simulater/angleDiv" value="$(arg simulater/angleDiv)"/>
+    <param name="simulater/maxSpeed" value="$(arg simulater/maxSpeed)"/>
+    <param name="simulater/defaultSpeed" value="$(arg simulater/defaultSpeed)"/>
+    <!-- ゴール位置 -->
+    <param name="simulater/goalX" value="$(arg simulater/goalX)"/>
+    <param name="simulater/goalY" value="$(arg simulater/goalY)"/>
+  </node>
+  </group>
+</launch>

@@ -1,0 +1,73 @@
+<launch>
+  <!-- rqt_reconfigure -->
+  <arg name="vfh_tdt/rqt_reconfigure" default="true"/>
+  <arg name="vfh_tdt/output" default="true"/>
+  <!-- ロボットパラメータ -->
+  <arg name="vfh_tdt/robotRadius" default="0.3125"/>
+  <arg name="vfh_tdt/robotSteerRadius" default="0.3145"/>
+  <arg name="vfh_tdt/controllerGainP" default="0.01"/>
+  <arg name="vfh_tdt/default_vel" default="0.2"/>
+  <!-- ゴール位置 -->
+  <arg name="vfh_tdt/goalX" default="0.0"/>
+  <arg name="vfh_tdt/goalY" default="6.0"/>
+  <!-- vfh -->
+  <arg name="vfh_tdt/k1" default="5"/>
+  <arg name="vfh_tdt/k2" default="1"/>
+  <arg name="vfh_tdt/k3" default="1"/>
+  <arg name="vfh_tdt/eta1" default="1"/>
+  <arg name="vfh_tdt/eta2" default="1"/>
+  <arg name="vfh_tdt/eta3" default="1"/>
+  <arg name="vfh_tdt/angleMin" default="45"/>
+  <arg name="vfh_tdt/angleMax" default="135"/>
+  <arg name="vfh_tdt/angleDiv" default="1"/>
+  <arg name="vfh_tdt/distanceThreshold" default="1"/>
+  <arg name="vfh_tdt/marginRadius" default="0.2"/>
+  <arg name="vfh_tdt/node_depth" default="1"/>
+  <arg name="vfh_tdt/delta_step" default="1"/>
+  <!-- debug -->
+  <arg name="vfh_tdt/loopFPS" default="1.0"/>
+  <!-- <arg name="vfh_tdt/debugGoalPosX" default="2.0"/>
+  <arg name="vfh_tdt/debugGoalPosY" default="6.0"/>
+  <arg name="vfh_tdt/debugCurAng" default="90"/>
+  <arg name="vfh_tdt/debugCmd_vel" default="0"/>
+  <arg name="vfh_tdt/debugPrevTagAng" default="90"/>
+  <arg name="vfh_tdt/debugRobotRadius" default="0.2"/>
+  <arg name="vfh_tdt/debugObstacleX1" default="3.0"/>
+  <arg name="vfh_tdt/debugObstacleY1" default="3.0"/>
+  <arg name="vfh_tdt/debugObstacleSize1" default="0.3"/>
+  <arg name="vfh_tdt/debugObstacleVx1" default="-0.4"/>
+  <arg name="vfh_tdt/debugObstacleVy1" default="0.0"/> -->
+  <!-- <group ns="$(arg robot_name)"> -->
+  <arg name="robot_name" default="robot2"/>
+  <group ns="$(arg robot_name)">
+  <node pkg="local_navigation" name="local_navigation_vfh_tdt" type="local_navigation_vfh_tdt" output="screen" respawn="false">
+    <!-- rqt_reconfigure -->
+    <param name="vfh_tdt/rqt_reconfigure" value="$(arg vfh_tdt/rqt_reconfigure)"/>
+    <!-- ロボットパラメータ -->
+    <param name="vfh_tdt/robotRadius" value="$(arg vfh_tdt/robotRadius)"/>
+    <param name="vfh_tdt/robotSteerRadius" value="$(arg vfh_tdt/robotSteerRadius)"/>
+    <param name="vfh_tdt/controllerGainP" value="$(arg vfh_tdt/controllerGainP)"/>
+    <param name="vfh_tdt/default_vel" value="$(arg vfh_tdt/default_vel)"/>
+    <!-- ゴール位置 -->
+    <param name="vfh_tdt/goalX" value="$(arg vfh_tdt/goalX)"/>
+    <param name="vfh_tdt/goalY" value="$(arg vfh_tdt/goalY)"/>
+    <!-- vfh -->
+    <param name="vfh_tdt/k1" value="$(arg vfh_tdt/k1)"/>
+    <param name="vfh_tdt/k2" value="$(arg vfh_tdt/k2)"/>
+    <param name="vfh_tdt/k3" value="$(arg vfh_tdt/k3)"/>
+    <param name="vfh_tdt/eta1" value="$(arg vfh_tdt/eta1)"/>
+    <param name="vfh_tdt/eta2" value="$(arg vfh_tdt/eta2)"/>
+    <param name="vfh_tdt/eta3" value="$(arg vfh_tdt/eta3)"/>
+    <param name="vfh_tdt/angleMin" value="$(arg vfh_tdt/angleMin)"/>
+    <param name="vfh_tdt/angleMax" value="$(arg vfh_tdt/angleMax)"/>
+    <param name="vfh_tdt/angleDiv" value="$(arg vfh_tdt/angleDiv)"/>
+    <param name="vfh_tdt/distanceThreshold" value="$(arg vfh_tdt/distanceThreshold)"/>
+    <param name="vfh_tdt/marginRadius" value="$(arg vfh_tdt/marginRadius)"/>
+    <param name="vfh_tdt/node_depth" value="$(arg vfh_tdt/node_depth)"/>
+    <param name="vfh_tdt/delta_step" value="$(arg vfh_tdt/delta_step)"/>
+    <!-- debug -->
+    <param name="vfh_tdt/loopFPS" value="$(arg vfh_tdt/loopFPS)"/>
+  </node>
+  <!-- </group> -->
+  </group>
+</launch>
