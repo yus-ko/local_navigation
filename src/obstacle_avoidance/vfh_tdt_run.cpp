@@ -91,7 +91,7 @@ class run{
             sub2=nhSub1.subscribe("zed_node/odom",1,&run::robotOdom_callback,this);
             sub3=nhSub1.subscribe("goalOdometry",1,&run::goalOdom_callback,this);
             sub4=nhSub1.subscribe("encoder",1,&run::robotEncoder_callback,this);
-            pub= nhPub.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+            pub= nhPub.advertise<geometry_msgs::Twist>("/beego/cmd_vel", 1);
             pubDebugClstr = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_clstr", 1);
             pubDebugNode = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_node", 1);
             //

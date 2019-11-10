@@ -13,7 +13,7 @@ obstacleAvoidance::obstacleAvoidance()
 	sub4=nhSub1.subscribe("encoder",1,&obstacleAvoidance::robotEncoder_callback,this);
 	//publisher
 	//ROS_INFO("publisher define");
-    pub= nhPub.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    pub= nhPub.advertise<geometry_msgs::Twist>("/beego/cmd_vel", 1);
 
 	//デバッグ用
 	// pubDebPcl= nhDeb.advertise<sensor_msgs::PointCloud2>("debugEstimatedVelocity", 1);

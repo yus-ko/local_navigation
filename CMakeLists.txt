@@ -103,6 +103,7 @@ generate_messages(
 generate_dynamic_reconfigure_options(
   cfg/obstacleAvoidance.cfg
   cfg/vfh_tdt.cfg
+  cfg/simulater.cfg
   # cfg/DynReconf2.cfg
   # cfg/DynReconf2.cfg
 )
@@ -167,6 +168,7 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
+#cross point vfh
 add_executable(${PROJECT_NAME}_cp_vfh # obstacle_avoidance
   src/obstacle_avoidance/constructor.cpp
   src/obstacle_avoidance/methods.cpp
@@ -174,20 +176,26 @@ add_executable(${PROJECT_NAME}_cp_vfh # obstacle_avoidance
   src/obstacle_avoidance/debug_methods.cpp
   src/obstacle_avoidance/property.cpp
 )
-
 add_dependencies(${PROJECT_NAME}_cp_vfh ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(${PROJECT_NAME}_cp_vfh ${PROJECT_NAME}_gencfg)
-
 target_link_libraries(${PROJECT_NAME}_cp_vfh ${catkin_LIBRARIES}) # obstacle_avoidance
 
-
+#vfh_tdt
 add_executable(${PROJECT_NAME}_vfh_tdt # obstacle_avoidance
   src/obstacle_avoidance/vfh_tdt_run.cpp
 )
-
 add_dependencies(${PROJECT_NAME}_vfh_tdt ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(${PROJECT_NAME}_vfh_tdt ${PROJECT_NAME}_gencfg)
 target_link_libraries(${PROJECT_NAME}_vfh_tdt ${catkin_LIBRARIES}) 
+
+#simulater
+add_executable(${PROJECT_NAME}_simulater # obstacle_avoidance
+  src/obstacle_avoidance/simulater_run.cpp
+)
+add_dependencies(${PROJECT_NAME}_simulater ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME}_simulater ${PROJECT_NAME}_gencfg)
+target_link_libraries(${PROJECT_NAME}_simulater ${catkin_LIBRARIES}) 
+
 
 #############
 ## Install ##
