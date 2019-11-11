@@ -2,7 +2,7 @@
   <!-- rqt_reconfigure -->
   <arg name="obstacleAvoidance/rqt_reconfigure" default="true"/>
   <!-- 探索種類 -->
-  <arg name="obstacleAvoidance/SEARCH_ONLY_ANGLE" default="false"/>
+  <arg name="obstacleAvoidance/SEARCH_ONLY_ANGLE" default="true"/>
   <!-- ロボットパラメータ -->
   <arg name="obstacleAvoidance/WheelD" default="0.3125"/>
   <arg name="obstacleAvoidance/angleMin" default="45"/>
@@ -10,21 +10,23 @@
   <arg name="obstacleAvoidance/angleDiv" default="1.0"/>
   <arg name="obstacleAvoidance/maxSpeed" default="0.4"/>
   <arg name="obstacleAvoidance/defaultSpeed" default="0.2"/>
-  <!-- ゴール位置 -->
-  <arg name="obstacleAvoidance/goalX" default="-2.0"/>
-  <arg name="obstacleAvoidance/goalY" default="6.0"/>
-  <!-- vfh -->
-  <!-- vfh - k -->
-  <arg name="obstacleAvoidance/marginRadius" default="1.0"/>
-  <arg name="obstacleAvoidance/Kcp" default="0.5"/>
-  <arg name="obstacleAvoidance/Kg" default="0.5"/>
-  <arg name="obstacleAvoidance/KcurAngle" default="0.5"/>
-  <arg name="obstacleAvoidance/KprevAngle" default="0.5"/>
-  <!-- vfh - eta -->
-  <arg name="obstacleAvoidance/EtaCp" default="1"/>
-  <arg name="obstacleAvoidance/EtaG" default="1"/>
-  <arg name="obstacleAvoidance/EtaCurAngle" default="1"/>
-  <arg name="obstacleAvoidance/EtaPrevAngle" default="1"/>
+  <!-- ゴール位置 -->
+  <arg name="obstacleAvoidance/goalX" default="0.0"/>
+  <arg name="obstacleAvoidance/goalY" default="6.0"/>
+  <!-- vfh -->
+  <!-- vfh - k -->
+  <arg name="obstacleAvoidance/marginRadius" default="1.0"/>
+  <arg name="obstacleAvoidance/Kcp" default="1.0"/>
+  <arg name="obstacleAvoidance/Kg" default="1.0"/>
+  <arg name="obstacleAvoidance/KcurAngle" default="0.25"/>
+  <arg name="obstacleAvoidance/KprevAngle" default="0.25"/>
+  <!-- vfh - eta -->
+  <arg name="obstacleAvoidance/EtaCp" default="1"/>
+  <arg name="obstacleAvoidance/EtaG" default="1"/>
+  <arg name="obstacleAvoidance/EtaCurAngle" default="1"/>
+  <arg name="obstacleAvoidance/EtaPrevAngle" default="1"/>
+  <!-- safe range -->
+  <arg name="obstacleAvoidance/safeRnage" default="1.2"/>
   <!-- 探査範囲 -->
   <arg name="obstacleAvoidance/searchRange_vel" default="0.2"/>
   <arg name="obstacleAvoidance/searchDiv_vel" default="0.02"/>
@@ -59,6 +61,8 @@
     <param name="obstacleAvoidance/EtaG" value="$(arg obstacleAvoidance/EtaG)"/>
     <param name="obstacleAvoidance/EtaCurAngle" value="$(arg obstacleAvoidance/EtaCurAngle)"/>
     <param name="obstacleAvoidance/EtaPrevAngle" value="$(arg obstacleAvoidance/EtaPrevAngle)"/>
+    <!-- safe range -->
+    <param name="obstacleAvoidance/safeRnage" value="$(arg obstacleAvoidance/safeRnage)"/>
     <!-- 探査範囲 -->
     <param name="obstacleAvoidance/searchRange_vel" value="$(arg obstacleAvoidance/searchRange_vel)"/>
     <param name="obstacleAvoidance/searchDiv_vel" value="$(arg obstacleAvoidance/searchDiv_vel)"/>

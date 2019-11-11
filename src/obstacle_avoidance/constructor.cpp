@@ -10,7 +10,7 @@ obstacleAvoidance::obstacleAvoidance()
 	sub1=nhSub1.subscribe("classificationDataEstimateVelocity",1,&obstacleAvoidance::cluster_callback,this);
 	sub2=nhSub1.subscribe("zed_node/odom",1,&obstacleAvoidance::robotOdom_callback,this);
 	sub3=nhSub1.subscribe("goalOdometry",1,&obstacleAvoidance::goalOdom_callback,this);
-	sub4=nhSub1.subscribe("encoder",1,&obstacleAvoidance::robotEncoder_callback,this);
+	sub4=nhSub1.subscribe("/encoder",1,&obstacleAvoidance::robotEncoder_callback,this);
 	//publisher
 	//ROS_INFO("publisher define");
     pub= nhPub.advertise<geometry_msgs::Twist>("/beego/cmd_vel", 1);
@@ -33,10 +33,12 @@ obstacleAvoidance::obstacleAvoidance()
 	vfh_c.set_histgram_param(angle_min,angle_max, angle_div);
 	vfh_c.set_dis_threshold(dis_th);
 	vfh_c.set_eta(eta_g, eta_curAngle, eta_prevAngle);
+	if(rqt_reconfigure){
+		//rqt_reconfigure
+		f = boost::bind(&obstacleAvoidance::configCallback, this, _1, _2);
+		server.setCallback(f);
 
-	//rqt_reconfigure
-	f = boost::bind(&obstacleAvoidance::configCallback, this, _1, _2);
-	server.setCallback(f);
+	}
 	ROS_INFO("ready");
 }
 obstacleAvoidance::~obstacleAvoidance(){

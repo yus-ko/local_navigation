@@ -51,13 +51,18 @@ void obstacleAvoidance::update_goal_position(){
 	//面倒なので位置の差と回転行列だけで良さそう
 
 	//位置差
-	// std::cout<<goalOdom.pose.pose.position.x<<","<<goalOdom.pose.pose.position.y<<","<<goalOdom.pose.pose.position.z<<std::endl;
-	// std::cout<<robotOdom.pose.pose.position.x<<","<<robotOdom.pose.pose.position.y<<","<<robotOdom.pose.pose.position.z<<std::endl;
+	std::cout<<"goal== "<<goalOdom.pose.pose.position.x<<","<<goalOdom.pose.pose.position.y<<","<<goalOdom.pose.pose.position.z<<std::endl;
+	std::cout<<"robot== "<<robotOdom.pose.pose.position.y<<","<<-robotOdom.pose.pose.position.x<<","<<robotOdom.pose.pose.position.z<<std::endl;
 
-	relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.x - robotOdom.pose.pose.position.x;
-	relationOdom.pose.pose.position.y = goalOdom.pose.pose.position.y - robotOdom.pose.pose.position.y;
+	// relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.x - robotOdom.pose.pose.position.x;
+	// relationOdom.pose.pose.position.y = goalOdom.pose.pose.position.y - robotOdom.pose.pose.position.y;
+	// relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.x - robotOdom.pose.pose.position.y;
+	// relationOdom.pose.pose.position.y = goalOdom.pose.pose.position.y - (-robotOdom.pose.pose.position.x);
+	relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.y - robotOdom.pose.pose.position.x;
+	relationOdom.pose.pose.position.y = (-goalOdom.pose.pose.position.x) - robotOdom.pose.pose.position.y;
 	relationOdom.pose.pose.position.z = goalOdom.pose.pose.position.z - robotOdom.pose.pose.position.z;
-	// tf::Quaternion quatGoal=tf::createQuaternionFromYaw(M_PI_2);//debugRobotYaw-M_PI_2);
+	
+	tf::Quaternion quatGoal=tf::createQuaternionFromYaw(M_PI_2);//debugRobotYaw-M_PI_2);
 	// quaternionTFToMsg(quatGoal, goalOdom.pose.pose.orientation);
 	//角度差はロボット姿勢角度 
 	tf::Quaternion quat;
@@ -65,8 +70,8 @@ void obstacleAvoidance::update_goal_position(){
 	quaternionMsgToTF(robotOdom.pose.pose.orientation, quat);
 	tf::Matrix3x3(quat).getRPY(r, p, y);
 	//ロボット座標系の軸を揃える
-	y += M_PI_2;//90deg回転
-
+	// y += M_PI_2;//90deg回転
+	
 	double theta_goal = atan2(relationOdom.pose.pose.position.y,relationOdom.pose.pose.position.x);
 	double theta_robot = y;
 	// std::cout<<"theta_goal - theta_robot = "<<theta_goal - theta_robot<<std::endl;
@@ -89,6 +94,7 @@ void obstacleAvoidance::update_goal_position(){
 	//ゴールセット
 	goal_x = -relationOdom.pose.pose.position.y;
 	goal_y = relationOdom.pose.pose.position.x;
+	std::cout<<"goal_xy: "<<goal_x <<","<<goal_y<<std::endl;
 }
 void obstacleAvoidance::manage(){
 	ROS_INFO("into manage");
@@ -122,9 +128,15 @@ void obstacleAvoidance::manage(){
 	}
 }
 bool obstacleAvoidance::data_check(){
+	ROS_INFO_STREAM(
+		(RECEIVED_CLUSTER ? "RECEIVED_CLUSTER" : "NOT CLUSTER") <<","<<
+		(RECEIVED_GOAL_ODOM ? "RECEIVED_GOAL_ODOM" : "NOT GOAL_ODOM") <<","<<
+		(RECEIVED_ROBOT_ODOM ? "RECEIVED_ROBOT_ODOM" : "NOT ROBOT_ODOM") <<","<<
+		(RECEIVED_ROBOT_ENCODAR ? "RECEIVED_ROBOT_ENCODAR" : "NOT ROBOT_ENCODAR") 
+	);
 	return(
-		RECEIVED_CLUSTER&& RECEIVED_GOAL_ODOM&& RECEIVED_ROBOT_ODOM 
-		&& RECEIVED_ROBOT_ENCODAR
+	    RECEIVED_CLUSTER&& RECEIVED_GOAL_ODOM&& RECEIVED_ROBOT_ODOM 
+	    && RECEIVED_ROBOT_ENCODAR
 	);
 }
 void obstacleAvoidance::data_check_reset(){
@@ -223,12 +235,12 @@ void obstacleAvoidance::getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y
 	// };
 	// std::vector<crossPoint> crsPts;
 	//ロボット速度 
-	float Vrx = cur_vel * cos(cur_ang*delta_time);
-	float Vry = cur_vel * sin(cur_ang*delta_time);
+	float Vrx = cur_vel * cos(cur_ang);//*delta_time);
+	float Vry = cur_vel * sin(cur_ang);//*delta_time);
 	// 目標速度(探査対象)
 	//cmd_dAng は水平右をx軸, 正面をy軸とする
-	float dVrx_c = (cmd_dV+cur_vel) * cos(cmd_ang*delta_time);//(cmd_dV+cur_vel) * cos(cmd_ang);
-	float dVry_c = (cmd_dV+cur_vel) * sin(cmd_ang*delta_time);//(cmd_dV+cur_vel) * sin(cmd_ang);
+	float dVrx_c = (cmd_dV+cur_vel) * cos(cmd_ang);//*delta_time);//(cmd_dV+cur_vel) * cos(cmd_ang);
+	float dVry_c = (cmd_dV+cur_vel) * sin(cmd_ang);//*delta_time);//(cmd_dV+cur_vel) * sin(cmd_ang);
 	//障害物
 	// 位置
 	float Xox = gpRef.x;
@@ -283,13 +295,100 @@ void obstacleAvoidance::getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y
 		crsPt_y0.safe = false;
 	}
 }
+void obstacleAvoidance::getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y0, int& indexRef, const local_navigation::ClassificationElement& clst_data, geometry_msgs::Twist& twistRef, float& cur_vel, float& cur_ang, float& cmd_dV, float& cmd_ang){
+	// 
+	// struct crossPoint{
+	// 	float x;//交差位置x
+	// 	float y;//交差位置y
+	// 	float dis;//交差位置とロボットの距離
+	// 	float t;//交差時の時間
+	// 	int index;//障害物番号
+	// };
+	// std::vector<crossPoint> crsPts;
+	//ロボット速度 
+	float Vrx = cur_vel * cos(cur_ang);//*delta_time);
+	float Vry = cur_vel * sin(cur_ang);//*delta_time);
+	// 目標速度(探査対象)
+	//cmd_dAng は水平右をx軸, 正面をy軸とする
+	float dVrx_c = (cmd_dV+cur_vel) * cos(cmd_ang);//*delta_time);//(cmd_dV+cur_vel) * cos(cmd_ang);
+	float dVry_c = (cmd_dV+cur_vel) * sin(cmd_ang);//*delta_time);//(cmd_dV+cur_vel) * sin(cmd_ang);
+	//障害物
+	// 位置
+	float Xox = clst_data.gc.x;
+	float Xoy = clst_data.gc.y;
+	// 速度
+	float Vox = twistRef.linear.x + Vrx;
+	float Voy = twistRef.linear.y + Vry;
+	// 番号
+	int index = indexRef;
+	//交差位置
+	float Vcx = Vox - dVrx_c;
+	float Vcy = Voy - dVry_c;
+	crsPt_x0.vx = Vcx;
+	crsPt_x0.vy = Vcy;
+	crsPt_x0.safe = false;
+	// 場合分け
+	//相対速度ゼロ
+	if(Vcx == 0&& Vcy ==0){
+		crsPt_x0.safe = true;
+	}
+	crsPt_y0 = crsPt_x0;
+	//障害物が離れていっているとき
+	// 傾き
+	float angle = atan2(Vcy,Vcx);
+	float frontAngle = M_PI_2;
+	//直線の式
+	float a = Vcy/Vcx;//X軸の右が正
+	float b = Xoy - a*Xox;
+	//交差位置 仮
+	// x = 0
+	// ROS_INFO("%f x + %f ",a,b);
+	crsPt_x0.x = 0;
+	crsPt_x0.y = b;
+	crsPt_x0.dis = crsPt_x0.y;
+	crsPt_x0.t = (0-Xox)/Vcx;//
+	// y = 0
+	crsPt_y0.x = - b /a;	
+	crsPt_y0.y = 0;
+	crsPt_y0.dis = crsPt_y0.x;
+	crsPt_y0.t = (0-Xoy)/Vcy;//
+	//--おおよそ直線方向接近物ー＞直進接近物に近似をやめ、2つの交差位置をどちらも採用
+	if(checkSafetyObstacle(crsPt_x0.t, angle,Xox,Xoy)){
+		crsPt_x0.safe = true;
+	}
+	else{
+		crsPt_x0.safe = false;
+		getNearestDistance(crsPt_x0, clst_data);
+	}
+	if(checkSafetyObstacle(crsPt_y0.t, angle,Xox,Xoy)){
+		crsPt_y0.safe = true;
+	}
+	else{
+		crsPt_y0.safe = false;
+		getNearestDistance(crsPt_y0, clst_data);
+	}
+}
+double obstacleAvoidance::getNearestDistance(crossPoint& crsPt, const local_navigation::ClassificationElement& clst_data){
+	//点群の中で最も近い距離を交差位置.距離にセット
+	for(int i=0; i<clst_data.pt.size();i++){
+		double x = crsPt.x - (clst_data.pt[i].x - clst_data.gc.x);
+		double y = crsPt.y - (clst_data.pt[i].y - clst_data.gc.y);
+		double dis = std::sqrt(std::pow(x,2.0)+std::pow(y,2.0));
+		if(crsPt.dis > dis){
+			crsPt.dis = dis;
+		}
+	}
+}
 //障害物データ群に対する各x,y座標の交差位置を算出(交差位置の配列)
 // 相対速度を使用する
 void obstacleAvoidance::crossPointsDetect(std::vector<crossPoint>& crsPts, float& cur_vel_temp, float& cur_angle_temp, float& cmd_dV, float& cmd_dAng){
 	crsPts.resize((int)clstr.data.size()*2);
 	for(int k=0; k<clstr.data.size(); k++){
-		getCrossPoints(crsPts[k*2], crsPts[k*2+1], k, clstr.data[k].gc, clstr.twist[k],cur_vel_temp,  cur_angle_temp, cmd_dV,cmd_dAng);
-		//getCrossPoint(cp_num, crsPts, k, clstr.data[k].gc, clstr.twist[k],cur_vel_temp, cmd_dV,cmd_dAng);
+		if(clstr.twist[k].linear.x ==0 || clstr.twist[k].linear.y == 0){
+			continue;
+		}
+	getCrossPoints(crsPts[k*2], crsPts[k*2+1], k, clstr.data[k].gc, clstr.twist[k],cur_vel_temp,  cur_angle_temp, cmd_dV,cmd_dAng);
+	//getCrossPoint(cp_num, crsPts, k, clstr.data[k].gc, clstr.twist[k],cur_vel_temp, cmd_dV,cmd_dAng);
 	}
 }
 //--コスト関数
@@ -343,13 +442,14 @@ void obstacleAvoidance::searchProcess(float& tagVel, float& tagAng){
 	if(SEARCH_ONLY_ANGLE){
 		dV = debugCmd_vel;
 		vfh_angleSearch(tagAng,cur_vel, dV);
+		tagVel = default_speed;
 	}
-	else {
+	else{
 		search_vel_ang(tagAng,cur_vel, dV);
+		tagVel = cur_vel + dV;
 	}
 	//
 	prev_tagAng = tagAng;
-	tagVel = cur_vel + dV;
 }
 // 最適角度探索
 double obstacleAvoidance::vfh_angleSearch(float& target_angle_temp, float& cur_vel_temp, float& cmd_dV){//return cost

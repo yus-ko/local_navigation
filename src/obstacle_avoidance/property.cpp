@@ -3,7 +3,8 @@
 void obstacleAvoidance::setLaunchParam(){
     
     ros::NodeHandle n("~");
-	n.getParam("obstacleAvoidance/SEARCH_ONLY_ANGLE",SEARCH_ONLY_ANGLE);    
+	n.getParam("obstacleAvoidance/SEARCH_ONLY_ANGLE",SEARCH_ONLY_ANGLE);   
+	n.getParam("obstacleAvoidance/rqt_reconfigure",rqt_reconfigure);    
 	//ロボットパラメータ
 	n.getParam("obstacleAvoidance/WheelD",d);
     n.getParam("obstacleAvoidance/angleMin", angle_min);
@@ -14,7 +15,10 @@ void obstacleAvoidance::setLaunchParam(){
     //ゴール位置
     n.getParam("obstacleAvoidance/goalX", goal_x);
     n.getParam("obstacleAvoidance/goalY", goal_y);
-	RECEIVED_GOAL_ODOM = true;//検討中
+    goalOdom.pose.pose.position.x = goal_x;
+    goalOdom.pose.pose.position.y = goal_y;
+    goalOdom.pose.pose.position.z = 0;
+    RECEIVED_GOAL_ODOM = true;//検討中
     //vfh
     //--k
     n.getParam("obstacleAvoidance/marginRadius", marginRadius);
@@ -27,6 +31,8 @@ void obstacleAvoidance::setLaunchParam(){
     n.getParam("obstacleAvoidance/EtaG",eta_g);
     n.getParam("obstacleAvoidance/EtaCurAngle",eta_curAngle);
     n.getParam("obstacleAvoidance/EtaPrevAngle",eta_prevAngle);
+    //safe range
+    n.getParam("obstacleAvoidance/safeRange",safe_range);
     //探査範囲
     n.getParam("obstacleAvoidance/searchRange_vel",dV_range);
     n.getParam("obstacleAvoidance/searchDiv_vel",dV_div);
