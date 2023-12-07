@@ -171,9 +171,10 @@ include_directories(
 #cross point vfh
 add_executable(${PROJECT_NAME}_cp_vfh # obstacle_avoidance
   src/obstacle_avoidance/constructor.cpp
-  src/obstacle_avoidance/methods.cpp
+  ##src/obstacle_avoidance/methods.cpp##20220916
+  src/obstacle_avoidance/new_methods.cpp
   src/obstacle_avoidance/debug_main.cpp
-  src/obstacle_avoidance/debug_methods.cpp
+  ##src/obstacle_avoidance/debug_methods.cpp##20220916
   src/obstacle_avoidance/property.cpp
 )
 add_dependencies(${PROJECT_NAME}_cp_vfh ${PROJECT_NAME}_generate_messages_cpp)

@@ -1,7 +1,7 @@
 ﻿#include<local_navigation/obstacleAvoidance.h>
 
 obstacleAvoidance::obstacleAvoidance()
-	:d(0.3145),angle_min(45),angle_max(135), angle_div(1.0),
+	:d(0.3145),angle_min(45),angle_max(135), angle_div(1.0),goalX(0),goalY(6.0),
 	RECEIVED_CLUSTER(false),RECEIVED_GOAL_ODOM(false),RECEIVED_ROBOT_ODOM(false),
 	SEARCH_ONLY_ANGLE(false),MAX_COST(900000)
 {
@@ -13,7 +13,7 @@ obstacleAvoidance::obstacleAvoidance()
 	sub4=nhSub1.subscribe("/encoder",1,&obstacleAvoidance::robotEncoder_callback,this);
 	//publisher
 	//ROS_INFO("publisher define");
-    pub= nhPub.advertise<geometry_msgs::Twist>("/beego/cmd_vel", 1);
+    	pub= nhPub.advertise<geometry_msgs::Twist>("/beego/cmd_vel", 1);
 
 	//デバッグ用
 	// pubDebPcl= nhDeb.advertise<sensor_msgs::PointCloud2>("debugEstimatedVelocity", 1);
@@ -23,7 +23,9 @@ obstacleAvoidance::obstacleAvoidance()
 	pubDebOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputChecker", 1);
 	pubDebCPVFHOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputCPVFHChecker", 1);
 	pubDebBagOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("outputBagOutputChecker", 1);
-
+	pubDebRotOutput = nhDeb.advertise<visualization_msgs::MarkerArray>("RotChecker", 1);
+	pubDebOdom = nhDeb.advertise<nav_msgs::Odometry>("DeltaOdomChecker", 1);
+	pubRotVel =  nhDeb.advertise<visualization_msgs::MarkerArray>("rotVelMarker", 1);
 	//launchファイルからパラメータの読み込み
 	setLaunchParam();
 	//クロスポイントチェッカーデフォルト値入力

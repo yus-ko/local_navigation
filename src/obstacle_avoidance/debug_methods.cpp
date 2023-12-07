@@ -496,6 +496,91 @@ void obstacleAvoidance::histgramChecker(){
 
     pubDebHst.publish( markerArray );
 }
+//ヒストグラムの出力結果を視覚的に表示する
+void obstacleAvoidance::histgramCheckerEx(){
+     //距離ヒストグラム
+    std::vector<double> histgram_dis;
+    vfh_c.get_histgram_dis(histgram_dis);
+    //バイナリヒストグラム
+    std::vector<bool> histgram_bi;
+    vfh_c.get_histgram_bi(histgram_bi);
+    // ROS_INFO_STREAM("histgram_bi:[");
+    // for(int i=0;i<histgram_bi.size();i++){
+    //     std::cout<<(angle_min + i * angle_div)<<": "<<histgram_bi[i]<<"\n";
+    // }
+    // ROS_INFO_STREAM("]histgram_end");
+    //マーカーセット
+    visualization_msgs::MarkerArray markerArray;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "base_link";
+    marker.header.stamp = ros::Time::now();
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    
+    int k = 0;
+    markerArray.markers.resize((int)histgram_dis.size()*2);
+    //
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.1;
+    marker.scale.z = 0.1;
+
+    //距離ヒストグラム
+    for(int i=0; i<histgram_dis.size();i++){
+        double l = histgram_dis[i];
+        double ang = (debugMinAngle + i * debugDivAngle)*M_PI/180;//rad
+        marker.color.a = 1.0;
+        marker.color.r = 0;
+        marker.color.g = 255;
+        marker.color.b = 0;
+        if(l ==-1){
+            l =4;
+            marker.color.r = 0;
+            marker.color.g = 255;
+            marker.color.b = 255;
+        }
+        //x, y 座標を算出
+        double x = l*cos(ang);
+        double y = l*sin(ang);
+        //
+        marker.pose.position.x = y;
+        marker.pose.position.y = -x;
+        marker.pose.position.z = 0;
+        marker.id = k;
+        markerArray.markers[k++] = marker;
+    }    
+
+    //２値ヒストグラム
+    for(int i=0; i<histgram_bi.size();i++){
+        
+        double l = dis_th;
+        double ang = (debugMinAngle + i * debugDivAngle)*M_PI/180;//rad
+        marker.color.a = 1.0;
+        marker.color.r = 255;
+        marker.color.g = 255;
+        marker.color.b = 255;
+
+        if(!histgram_bi[i]){
+            l = 1.0;
+            marker.color.g = 0;
+            marker.color.b = 0;
+        }
+
+        //x, y 座標を算出
+        double x = l*cos(ang);
+        double y = l*sin(ang);
+        //
+        marker.pose.position.x = y;
+        marker.pose.position.y = -x;
+        // marker.pose.position.z = 1.0;
+
+        marker.id = k;
+        markerArray.markers[k++] = marker;
+
+    }
+    markerArray.markers.resize(k);
+
+    pubDebHst.publish( markerArray );
+}
 //出力（命令速度, 角度）を視覚的に表示する
 void obstacleAvoidance::outputVFHChecker(){
     //ヒストグラムチェッカーのパラメータを共有
@@ -1063,3 +1148,177 @@ void obstacleAvoidance::outputCrossPointVFHChecker(){
     pubDebCPVFHOutput.publish( markerArray );
 
 }   
+//回転による障害物速度の変化量を回転変化前と変化後を比較することで行う
+void obstacleAvoidance::rotationVelocityChecker(double omega){
+    //clstr: 障害物クラスタ（ロボット座標系(時刻t)）
+    //rotClstr: 障害物クラスタ（ロボット座標系(時刻t)）
+    //
+    //平行移動
+    //X_para = X - X_base (X ={x,y,th,vx,vy})
+    //しかし,今回はX_baseがロボット座標であるため, 
+    //X_para = X
+    //となる
+    //X_baseは基準座標であり, 今回変更したい座標の基準であるため
+    //X_base={0,0,M_PI_2,0,0} (ロボット座標系)
+    //
+    //回転移動
+    //X_rot = R(-delta_theta) X_para
+    //
+    //これにより, ロボット回転による障害物の速度が算出される
+    //計算をロボット座標系基準で行う
+    //クラスタのコピー
+    rotClstr = clstr;
+    //
+    visualization_msgs::MarkerArray markerArray;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "base_link";
+    marker.header.stamp = clstr.header.stamp;
+    marker.lifetime = ros::Duration(0.3);
+    marker.action = visualization_msgs::Marker::ADD;
+    markerArray.markers.resize((int)clstr.data.size()*5);
+    
+    int count = 0;
+    for(int k=0;k < clstr.data.size();k++){
+        double v_rot_x, v_rot_y;
+        double x_para_x = clstr.data[k].gc.x;
+        double x_para_y = clstr.data[k].gc.y;
+        //double x_para_theta = std::atan2(clstr.data[k].gc.y,clstr.data[k].gc.x)-M_PI_2;
+        //
+        double delta_r,delta_p,delta_yaw;
+        tf::Quaternion quat_rot;
+        quaternionMsgToTF(deltaRobotOdom.pose.pose.orientation, quat_rot);
+        tf::Matrix3x3(quat_rot).getRPY(delta_r,delta_p,delta_yaw);
+        //
+        double x_para_theta = delta_yaw;//std::atan2(gpRef.y,gpRef.x)-M_PI_2;
+        
+        double x_para_vx = clstr.twist[k].linear.x;
+        double x_para_vy = clstr.twist[k].linear.y;
+        //回転算出
+        // debug_trans_rotation_vel(v_rot_x,v_rot_y,x_para_x,x_para_y,x_para_theta,x_para_vx, x_para_vy,omega);
+        //        
+        double pos_x = clstr.data[k].gc.x;
+        double pos_y = clstr.data[k].gc.y;
+        double vel_x = clstr.twist[k].linear.x;
+        double vel_y = clstr.twist[k].linear.y;
+        double vr_x = cur_vel * cos(cur_angVel*delta_time+M_PI_2);//*delta_time);
+        double vr_y = cur_vel * sin(cur_angVel*delta_time+M_PI_2);//*delta_time);
+        double delta_pos_x = pos_x + cos(delta_yaw)*(vel_x*delta_time - pos_x + vr_x*delta_time) + sin(delta_yaw)*(vel_y*delta_time - pos_y + vr_y*delta_time);
+        double delta_pos_y = pos_y - sin(delta_yaw)*(vel_x*delta_time - pos_x + vr_x*delta_time) + cos(delta_yaw)*(vel_y*delta_time - pos_y + vr_y*delta_time);
+        // 速度
+        float Vox = delta_pos_x/delta_time;
+        float Voy = delta_pos_y/delta_time;
+        //
+        // rotClstr.twist[k].linear.x -= v_rot_x;
+        // rotClstr.twist[k].linear.y -= v_rot_y;
+        // rotClstr.twist[k].linear.x += v_rot_x;
+        // rotClstr.twist[k].linear.y += v_rot_y;
+        // rotClstr.twist[k].linear.x = v_rot_x + clstr.twist[k].linear.x;
+        // rotClstr.twist[k].linear.y = v_rot_y + clstr.twist[k].linear.y;
+        rotClstr.twist[k].linear.x = Vox;
+        rotClstr.twist[k].linear.y = Voy;
+        //
+        marker.ns = "obstacle_vec_self";
+        marker.type = visualization_msgs::Marker::ARROW;
+        marker.scale.x = 0.3;
+        marker.scale.y = 0.05;
+        marker.scale.z = 0.05;
+        // local -> rviz 
+        marker.pose.position.x = clstr.data[k].gc.y;
+        marker.pose.position.y = -clstr.data[k].gc.x;
+        marker.pose.position.z = clstr.data[k].gc.z;
+        //angle
+        double yaw = std::atan2(-clstr.twist[k].linear.x, clstr.twist[k].linear.y);
+        // if(clstr.twist[k].linear.x==0 && clstr.twist[k].linear.y ==0){
+        //     marker.type = visualization_msgs::Marker::SPHERE;
+        //     marker.scale.x = 0.3;
+        //     marker.scale.y = 0.3;
+        //     marker.scale.z = 0.5;
+        //     yaw = 0;
+        // }
+
+        //culc Quaternion
+        marker.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
+        marker.id = count;
+        marker.color.a = 1.0;
+        marker.color.r = 1.0;
+        marker.color.g = 1.0;
+        marker.color.b = 1.0;
+        markerArray.markers[count++] = marker;
+        //
+        marker.ns = "obstacle_difVel_self";
+        std::cout<<k<<","<<x_para_theta*180/M_PI<<":bef,rot:("<<clstr.twist[k].linear.x<<","<<clstr.twist[k].linear.y<<"),("<<rotClstr.twist[k].linear.x<<","<<rotClstr.twist[k].linear.y<<")"<<std::endl;
+        double yawRot = std::atan2(-rotClstr.twist[k].linear.x, rotClstr.twist[k].linear.y);
+        std::cout<<k<<","<<x_para_theta*180/M_PI<<":bef,rot:("<<std::atan2(clstr.twist[k].linear.y, clstr.twist[k].linear.x)<<","<<std::atan2(rotClstr.twist[k].linear.y, rotClstr.twist[k].linear.x)<<std::endl;
+        //
+        //culc Quaternion
+        marker.pose.orientation = tf::createQuaternionMsgFromYaw(yawRot);
+        marker.id = count;
+        marker.pose.position.z = clstr.data[k].gc.z+0.2;
+        marker.color.a = 1.0;
+        marker.color.r = 1.0;
+        marker.color.g = 0;
+        marker.color.b = 0;
+        markerArray.markers[count++] = marker;
+        //
+        //rot
+        marker.ns = "obstacle_rotVel_self";
+        double yawRotVel = std::atan2(-v_rot_x, v_rot_y);
+        marker.pose.orientation = tf::createQuaternionMsgFromYaw(yawRotVel);
+        marker.id = count;
+        marker.pose.position.z = clstr.data[k].gc.z+0.4;
+        marker.scale.x = 0.3;
+        marker.scale.y = 0.05;
+        marker.scale.z = 0.05;
+        marker.color.a = 1.0;
+        marker.color.r = 0.0;
+        marker.color.g = 1;
+        marker.color.b = 0;
+        markerArray.markers[count++] = marker;
+        marker.ns = "obstacle_rotVel_text";
+        //text rotVel
+        marker.color.a = 1.0;
+        marker.color.r = 1.0;
+        marker.color.g = 1;
+        marker.color.b = 1;
+        marker.scale.x = 0.5;
+        marker.scale.y = 0.5;
+        marker.scale.z = 0.4;
+        marker.pose.position.z = clstr.data[k].gc.z+1.0;
+        marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        marker.text = "xy:("+ std::to_string(v_rot_x) +","+ std::to_string(v_rot_y)+")" ;
+        marker.id = count;
+        markerArray.markers[count++] = marker;
+    }
+    //
+    ROS_INFO("pubDebRotOutput: %d",count );
+    markerArray.markers.resize(count);
+    if(markerArray.markers.size()){
+        pubDebRotOutput.publish( markerArray );
+    }
+}
+void obstacleAvoidance::trans_rotation_vel(double& v_rot_x, double& v_rot_y, const double& x_para_x,const double& x_para_y,const double& x_para_vx,const double& x_para_vy){
+    //変数作成
+    double theta_base = M_PI_2;//正面方向
+    double omega_base;
+    //tf座標系とヨー方向回転軸は同じため,自己位置推定結果を使用
+    //
+    omega_base = deltaRobotOdom.twist.twist.angular.z;
+    //計算
+    v_rot_x = omega_base * (-sin(theta_base)*x_para_x - cos(theta_base)*x_para_y)
+            + cos(theta_base)*x_para_vx - sin(theta_base)*x_para_vy;
+    v_rot_y = omega_base * (-sin(theta_base)*x_para_x - cos(theta_base)*x_para_y)
+            - sin(theta_base)*x_para_vx + cos(theta_base)*x_para_vy;
+}
+void obstacleAvoidance::debug_trans_rotation_vel(double& v_rot_x, double& v_rot_y, const double& x_para_x,const double& x_para_y,const double& x_para_theta,const double& x_para_vx,const double& x_para_vy, const double& omega_base){
+    //変数作成
+    // double theta_base = M_PI_2;//正面方向がベース
+    //計算
+    // v_rot_x = omega_base * (-sin(theta_base)*x_para_x - cos(theta_base)*x_para_y)
+    //         + cos(theta_base)*x_para_vx - sin(theta_base)*x_para_vy;
+    // v_rot_y = omega_base * (-sin(theta_base)*x_para_x - cos(theta_base)*x_para_y)
+    //         - sin(theta_base)*x_para_vx + cos(theta_base)*x_para_vy;
+    v_rot_x = omega_base * (-sin(x_para_theta)*x_para_x - cos(x_para_theta)*x_para_y)
+            + cos(x_para_theta)*x_para_vx - sin(x_para_theta)*x_para_vy;
+    v_rot_y = omega_base * (cos(x_para_theta)*x_para_x - sin(x_para_theta)*x_para_y)
+            + sin(x_para_theta)*x_para_vx + cos(x_para_theta)*x_para_vy;
+}

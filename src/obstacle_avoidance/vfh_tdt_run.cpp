@@ -7,6 +7,8 @@
 #include <pcl_ros/point_cloud.h>
 #include <tf/transform_broadcaster.h>
 #include<visualization_msgs/MarkerArray.h>
+#include<std_msgs/Empty.h>
+#include <ros/callback_queue.h>
 // rqt_reconfige
 #include <dynamic_reconfigure/server.h>
 #include<local_navigation/vfh_tdtConfig.h>
@@ -45,7 +47,7 @@ class run{
         //制御
         float gainP;//Pゲイン
         //デバッグパラメータ
-        nav_msgs::Odometry debugRobotOdom,debugGoalOdom,debugRelationOdom;
+        nav_msgs::Odometry debugRobotOdom,pre_robotOdom,deltaRobotOdom,debugGoalOdom,debugRelationOdom;
         float debugRobotYaw;
         float loopFPS;
         float marker_life_time;
@@ -90,7 +92,7 @@ class run{
             sub1=nhSub1.subscribe("classificationDataEstimateVelocity",1,&run::cluster_callback,this);
             sub2=nhSub1.subscribe("zed_node/odom",1,&run::robotOdom_callback,this);
             sub3=nhSub1.subscribe("goalOdometry",1,&run::goalOdom_callback,this);
-            sub4=nhSub1.subscribe("encoder",1,&run::robotEncoder_callback,this);
+            sub4=nhSub1.subscribe("/encoder",1,&run::robotEncoder_callback,this);
             pub= nhPub.advertise<geometry_msgs::Twist>("/beego/cmd_vel", 1);
             pubDebugClstr = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_clstr", 1);
             pubDebugNode = nhPubDeb.advertise<visualization_msgs::MarkerArray>("debug_node", 1);
@@ -183,8 +185,8 @@ class run{
         void robotEncoder_callback(const beego_control::beego_encoder::ConstPtr& msg){
             //データをコピー
             robotEncoder = *msg;
-            cur_vel = (robotEncoder.vel.r + robotEncoder.vel.l)/2;
-            cur_angVel = (robotEncoder.vel.r - robotEncoder.vel.l)/( d);
+            cur_vel = ((-robotEncoder.vel.r)  + robotEncoder.vel.l)/2;
+            cur_angVel = ((-robotEncoder.vel.r)  - robotEncoder.vel.l)/( d);
             RECEIVED_ROBOT_ENCODAR = true;
             main_process();
         }
@@ -270,9 +272,39 @@ class run{
             }
             // main_process();
         }
+        void culc_delta_robotOdom(){
+            deltaRobotOdom.pose.pose.position.x = robotOdom.pose.pose.position.x - pre_robotOdom.pose.pose.position.x;
+            deltaRobotOdom.pose.pose.position.y = robotOdom.pose.pose.position.y - pre_robotOdom.pose.pose.position.y;
+            deltaRobotOdom.pose.pose.position.z = robotOdom.pose.pose.position.z - pre_robotOdom.pose.pose.position.z;
+            deltaRobotOdom.twist.twist.linear.x = (robotOdom.pose.pose.position.x - pre_robotOdom.pose.pose.position.x ) / ( ros::Duration(robotOdom.header.stamp - pre_robotOdom.header.stamp).toSec() );
+            deltaRobotOdom.twist.twist.linear.y = (robotOdom.pose.pose.position.y - pre_robotOdom.pose.pose.position.y ) / ( ros::Duration(robotOdom.header.stamp - pre_robotOdom.header.stamp).toSec() );
+            deltaRobotOdom.twist.twist.linear.z = (robotOdom.pose.pose.position.z - pre_robotOdom.pose.pose.position.z ) / ( ros::Duration(robotOdom.header.stamp - pre_robotOdom.header.stamp).toSec() );
+            // deltaRobotOdom = robotOdom - pre_robotOdom;
+            //回転
+            tf::Quaternion quat;
+            double r_cur,p_cur,y_cur;
+            quaternionMsgToTF(robotOdom.pose.pose.orientation, quat);
+            tf::Matrix3x3(quat).getRPY(r_cur,p_cur,y_cur);
+            double r_pre,p_pre,y_pre;
+            quaternionMsgToTF(pre_robotOdom.pose.pose.orientation, quat);
+            tf::Matrix3x3(quat).getRPY(r_pre,p_pre,y_pre);
+            double delta_theta = y_cur - y_pre;
+            double omega = delta_theta/( ros::Duration(robotOdom.header.stamp - pre_robotOdom.header.stamp).toSec() );
+            //
+            tf::Quaternion quatTheta=tf::createQuaternionFromYaw(delta_theta);//debugRobotYaw-M_PI_2);
+            quaternionTFToMsg(quatTheta, deltaRobotOdom.pose.pose.orientation);
+            ROS_INFO("omega=%f",omega);
+            deltaRobotOdom.twist.twist.angular.x = 0;
+            deltaRobotOdom.twist.twist.angular.y = 0;
+            deltaRobotOdom.twist.twist.angular.z = omega;
+            
+            pre_robotOdom = robotOdom;
+
+        }
+
         //メインループ
         void main_process(){
-            ROS_INFO("main_process");
+            // ROS_INFO("main_process");
             //仮
             // tf::Quaternion quat;
             // quat=tf::createQuaternionFromYaw(M_PI_2);
@@ -290,8 +322,11 @@ class run{
                 data_check_reset();
                 ROS_INFO("data_check_reset");
                 if(!culc_delta_time()){
+        			pre_robotOdom = robotOdom;
                     return;
                 }
+                //ロボットグローバル速度算出
+                culc_delta_robotOdom();
                 trans_obstacle_velocity();
                 ROS_INFO("trans_obstacle_velocity");
                 update_goal_position();
@@ -302,6 +337,16 @@ class run{
             }
         }
         bool data_check(){
+            if(RECEIVED_CLUSTER&& RECEIVED_GOAL_ODOM&& RECEIVED_ROBOT_ODOM 
+                && RECEIVED_ROBOT_ENCODAR){
+                    ROS_INFO_STREAM("received data");
+                }
+            // ROS_INFO_STREAM(
+            //     (RECEIVED_CLUSTER ? "RECEIVED_CLUSTER" : "NOT CLUSTER") <<","<<
+            //     (RECEIVED_GOAL_ODOM ? "RECEIVED_GOAL_ODOM" : "NOT GOAL_ODOM") <<","<<
+            //     (RECEIVED_ROBOT_ODOM ? "RECEIVED_ROBOT_ODOM" : "NOT ROBOT_ODOM") <<","<<
+            //     (RECEIVED_ROBOT_ENCODAR ? "RECEIVED_ROBOT_ENCODAR" : "NOT ROBOT_ENCODAR") 
+            // );
             return(
                 RECEIVED_CLUSTER&& RECEIVED_GOAL_ODOM&& RECEIVED_ROBOT_ODOM 
                 && RECEIVED_ROBOT_ENCODAR
@@ -329,10 +374,43 @@ class run{
             std::cout<<"v:"<<cur_vel<<", angvel"<<cur_angVel<<std::endl;
             double vy_r = cur_vel*cos(cur_angVel * delta_time);
             double vx_r = -cur_vel*sin(cur_angVel * delta_time);
+            //
+            double delta_r,delta_p,delta_yaw;
+            tf::Quaternion quat_rot;
+            quaternionMsgToTF(deltaRobotOdom.pose.pose.orientation, quat_rot);
+            tf::Matrix3x3(quat_rot).getRPY(delta_r,delta_p,delta_yaw);
+            //
             std::cout<<"vr:("<<vx_r<<","<<vy_r<<std::endl;
             for(int i = 0; i<clstr.twist.size();i++){
-                clstr.twist[i].linear.x = clstr.twist[i].linear.x + vx_r;
-                clstr.twist[i].linear.y = clstr.twist[i].linear.y + vy_r;
+                double pos_x = clstr.data[i].gc.x;
+                double pos_y = clstr.data[i].gc.y;
+                double vel_x = clstr.twist[i].linear.x;
+                double vel_y = clstr.twist[i].linear.y;
+                double delta_pos_x = pos_x + cos(delta_yaw)*(vel_x*delta_time - pos_x + vx_r*delta_time) + sin(delta_yaw)*(vel_y*delta_time - pos_y + vy_r*delta_time);
+        	    double delta_pos_y = pos_y - sin(delta_yaw)*(vel_x*delta_time - pos_x + vx_r*delta_time) + cos(delta_yaw)*(vel_y*delta_time - pos_y + vy_r*delta_time);
+                // 速度
+                float Vox = delta_pos_x/delta_time;
+                float Voy = delta_pos_y/delta_time;
+                //回転
+                tf::Quaternion quat;
+                double r_cur,p_cur,y_cur;
+                quaternionMsgToTF(robotOdom.pose.pose.orientation, quat);
+                tf::Matrix3x3(quat).getRPY(r_cur,p_cur,y_cur);
+                double r_pre,p_pre,y_pre;
+                quaternionMsgToTF(robotOdom.pose.pose.orientation, quat);
+                tf::Matrix3x3(quat).getRPY(r_pre,p_pre,y_pre);
+                // double delta_theta = y_cur - y_pre;
+                double delta_theta = cur_angVel*delta_theta;
+                double V = std::sqrt(std::pow(Vox,2.0)+std::pow(Voy,2.0));
+                double theta = std::atan2(Voy,Vox);
+                double theta_rot = theta - delta_theta;
+                Vox = V*cos(theta_rot);
+                Voy = V*sin(theta_rot);
+                //
+                clstr.twist[i].linear.x = Vox;
+                clstr.twist[i].linear.y = Voy;
+                // clstr.twist[i].linear.x = clstr.twist[i].linear.x + vx_r;
+                // clstr.twist[i].linear.y = clstr.twist[i].linear.y + vy_r;
             }
         }
         void data_check_reset(){
@@ -355,8 +433,8 @@ class run{
             // std::cout<<goalOdom.pose.pose.position.x<<","<<goalOdom.pose.pose.position.y<<","<<goalOdom.pose.pose.position.z<<std::endl;
             // std::cout<<robotOdom.pose.pose.position.x<<","<<robotOdom.pose.pose.position.y<<","<<robotOdom.pose.pose.position.z<<std::endl;
 
-            relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.x - robotOdom.pose.pose.position.x;
-            relationOdom.pose.pose.position.y = goalOdom.pose.pose.position.y - robotOdom.pose.pose.position.y;
+            relationOdom.pose.pose.position.x = goalOdom.pose.pose.position.y - robotOdom.pose.pose.position.x;
+            relationOdom.pose.pose.position.y = (-goalOdom.pose.pose.position.x) - robotOdom.pose.pose.position.y;
             relationOdom.pose.pose.position.z = goalOdom.pose.pose.position.z - robotOdom.pose.pose.position.z;
             // tf::Quaternion quatGoal=tf::createQuaternionFromYaw(M_PI_2);//debugRobotYaw-M_PI_2);
             // quaternionTFToMsg(quatGoal, goalOdom.pose.pose.orientation);
@@ -366,7 +444,7 @@ class run{
             quaternionMsgToTF(robotOdom.pose.pose.orientation, quat);
             tf::Matrix3x3(quat).getRPY(r, p, y);
             //ロボット座標系の軸を揃える
-            y += M_PI_2;//90deg回転
+            // y += M_PI_2;//90deg回転
 
             double theta_goal = atan2(relationOdom.pose.pose.position.y,relationOdom.pose.pose.position.x);
             double theta_robot = y;
@@ -414,7 +492,8 @@ class run{
                 int node_num = vfhTDT.get_min_cost_node();
                 // ROS_INFO("check_search_finish");
                 if(vfhTDT.check_search_finish()){
-                    best_node_num = node_num;
+                    best_node_num = vfhTDT.get_best_node();
+                    // best_node_num = node_num;
                     break;
                 }
                 // ROS_INFO("add_node");
@@ -428,7 +507,14 @@ class run{
             std::cout<<"cobine_open_close_node"<<std::endl;
             vfhTDT.cobine_open_close_node();
             std::cout<<"search_node_n"<<std::endl;
-            target_num = vfhTDT.search_node_n(best_node_num);
+            if(best_node_num ==0){
+                target_num = best_node_num;
+                target_angle = M_PI_2;
+                return;
+            }
+            else{
+                target_num = vfhTDT.search_node_n(best_node_num);
+            }
             //最良ノードを格納
             best_node = vfhTDT.get_conbine_node(target_num);
             cost_node goalNode = vfhTDT.get_goalNode();
@@ -449,7 +535,7 @@ class run{
             //display node
             // display_all_node(vfhTDT.get_open_node(), vfhTDT.get_closed_node());
             display_all_node(clstr,vfhTDT.get_open_node(), vfhTDT.get_closed_node());
-            display_clstr(clstr);
+            // display_clstr(clstr);
         }
         void publish_cmd_vel(){
             geometry_msgs::Twist cmd_vel = controler(target_vel,target_angle);
@@ -458,7 +544,7 @@ class run{
         geometry_msgs::Twist controler(float& tagVel, float& tagAng){
             //p制御
             double cur_ang = M_PI_2;//正面を向いているため
-            float tagAngVel = (tagAng-cur_ang)*gainP;
+            float tagAngVel = (tagAng-cur_ang)*180/M_PI*gainP;
             //
             geometry_msgs::Twist twist;
             twist.linear.x =tagVel; 
@@ -1226,11 +1312,40 @@ class run{
         }
 };
 
+bool PROCESS_START;
+//switch関数
+void callback_function(const std_msgs::Empty::ConstPtr& msg)
+{
+	ROS_INFO("Turn On");
+	PROCESS_START =true;
+}
+
 int main(int argc,char **argv){
 	ros::init(argc,argv,"vfh_tdt_node");
     
     ROS_INFO("constructer");
     run runCls;
+    //idle process
+	std_msgs::Empty empty_msg;
+	ros::NodeHandle nh_s;
+	ros::Publisher pub_s;
+	pub_s = nh_s.advertise<std_msgs::Empty>("/robot1/mobile_base/commands/reset_odometry", 1);
+
+	ros::Subscriber sub_s;
+	ros::CallbackQueue queue;
+
+	nh_s.setCallbackQueue(&queue);
+	sub_s=nh_s.subscribe("start_swich",1,callback_function);
+
+	PROCESS_START=false;
+	while(ros::ok()&&!PROCESS_START)
+	{
+		ROS_INFO("Waiting switch msg");
+		pub_s.publish(empty_msg);
+		queue.callOne(ros::WallDuration(0.1));
+	}
+	ROS_INFO("start");
+    //
     ros::spin();
 	//--process
     

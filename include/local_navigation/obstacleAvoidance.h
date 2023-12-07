@@ -30,16 +30,17 @@ class obstacleAvoidance{
 		ros::NodeHandle nhSub1;
 		ros::Subscriber sub1,sub2,sub3,sub4;
     	local_navigation::ClassificationVelocityData clstr;//速度データ付きのクラスタデータ
-        nav_msgs::Odometry robotOdom,goalOdom,relationOdom;
+    	local_navigation::ClassificationVelocityData rotClstr;
+        nav_msgs::Odometry robotOdom,pre_robotOdom,deltaRobotOdom,goalOdom,relationOdom;
         beego_control::beego_encoder robotEncoder;
         //送信データ
 		ros::NodeHandle nhPub;
         ros::Publisher pub;
         // 処理
-		bool RECEIVED_CLUSTER;
+	bool RECEIVED_CLUSTER;
         bool RECEIVED_GOAL_ODOM;
         bool RECEIVED_ROBOT_ODOM ;
-		bool RECEIVED_ROBOT_ENCODAR;
+	bool RECEIVED_ROBOT_ENCODAR;
         bool SEARCH_ONLY_ANGLE;
         double MAX_COST;
         //時間
@@ -51,7 +52,7 @@ class obstacleAvoidance{
         //--ロボットパラメータ
         float d;//車輪間隔の半分
         float robotRadius;//ロボット半径
-        float max_speed;
+        float max_speed,min_speed;
         float default_speed;
         //--vfh
         float marginRadius;//マージン半径
@@ -62,6 +63,9 @@ class obstacleAvoidance{
         float k_prevAngle, eta_prevAngle;//現在の角速度と目標角速度に対する重み
         float k_vel,eta_vel;//速度加減速に対する重み
         float safe_range;
+        float crossWeightX;
+        float crossWeightY;
+        float timeBias;
         //
     	std::vector<crossPoint> crsPts;
         float goal_x, goal_y;
@@ -70,6 +74,7 @@ class obstacleAvoidance{
         float angle_min,angle_max, angle_div;
         float cur_vel,cur_angVel;
         float dV_range, dV_div;
+	double goalX,goalY;
         //
         std::vector<double> hst_dis;//ヒストグラム配列(距離)
         std::vector<bool> hst_bi;//ヒストグラム配列(２値化後)
@@ -77,6 +82,7 @@ class obstacleAvoidance{
         // デバッグ用
 		ros::NodeHandle nhDeb;
         ros::Publisher pubDebPcl,pubDebCross,pubDebMarkerArray, pubDebHst,pubDebOutput,pubDebCPVFHOutput,pubDebBagOutput;
+        ros::Publisher pubDebRotOutput,pubDebOdom,pubRotVel;
         int debugType;
         //カラーリスト
         float colors[12][3] ={{1.0,0,1.0},{1.0,1.0,0},{0,1.0,1.0},{1.0,0,0},{0,1.0,0},{0,0,1.0},{0.5,1.0,0},{0,0.5,1.0},{0.5,0,1.0},{1.0,0.5,0},{0,1.0,0.5},{1.0,0,0.5}};//色リスト
@@ -93,6 +99,7 @@ class obstacleAvoidance{
         geometry_msgs::Twist debugTwistRef;//障害物速度
         float debugObstacleRadius;//障害物半径
         float debugRobotRadius;//ロボット半径（ヒストグラムチェッカーでも使用）
+	double K_kakudo;
         //ヒストグラムチェッカー入力
         bool debugHistgramCheckerFlag;
         int debugObstacleNum;
@@ -132,12 +139,21 @@ class obstacleAvoidance{
         float debugObstacleSizeThreshold;
         geometry_msgs::Point debugGp1,debugGp2,debugGp3;//クラスタ重心
         geometry_msgs::Twist debugTwist1,debugTwist2,debugTwist3;//障害物速度
+        bool debugRotationVelocityCheckerFlag;
+        double debugRotOmega;
         //交差位値表示
         bool display_output;
         //--rqt_reconfigure
         bool rqt_reconfigure;//rqt_reconfigureを使用するか
         dynamic_reconfigure::Server<local_navigation::obstacleAvoidanceConfig> server;
         dynamic_reconfigure::Server<local_navigation::obstacleAvoidanceConfig>::CallbackType f;
+	double N;
+	double pre_rad;
+	double pre_omega;
+
+        double CONTROLLER_GAIN_P = 1.0, POTENTIAL_F1 = 0.0, POTENTIAL_F2 = 0.0;
+        int MOVE_MEAN_WINDOW_NUM = 3;
+
     public:
         //in constracter.cpp
         //コンストラクタ：クラス定義に呼び出されるメソッド
@@ -169,6 +185,9 @@ class obstacleAvoidance{
         void data_check_reset();
         void get_time();
         bool culc_delta_time();
+        void culc_delta_robotOdom();
+        void trans_rotation_vel(double& v_rot_x, double& v_rot_y, const double& x_para_x,const double& x_para_y,const double& x_para_vx,const double& x_para_vy);
+        crossPoint getCrossPoint(int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cur_vel, float& cur_ang, float& cmd_dV, float& cmd_ang);
         crossPoint getCrossPoint(int& cp_num, std::vector<crossPoint>& crsPts, int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cur_vel, float& cmd_dV, float& cmd_dAng);
         void getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y0, int& indexRef,geometry_msgs::Point& gpRef, geometry_msgs::Twist& twistRef, float& cur_vel, float& cur_ang, float& cmd_dV, float& cmd_ang);
         void getCrossPoints(crossPoint& crsPt_x0, crossPoint& crsPt_y0, int& indexRef, const local_navigation::ClassificationElement& clst_data, geometry_msgs::Twist& twistRef, float& cur_vel, float& cur_ang, float& cmd_dV, float& cmd_ang);
@@ -181,15 +200,17 @@ class obstacleAvoidance{
         double getCrossPointCost(std::vector<crossPoint>& crsPts, float eta_cp);//交差位置コスト
         bool checkSafetyObstacle(float& t, float& angle, float& x, float& y);
         void searchProcess(float& tagVel, float& tagAng);
+	void potential(float& tagVel, float& tagAng);
         void search_vel_ang(float& target_angle, float& cur_vel_temp, float& cmd_dV);        
         double vfh_angleSearch(float& target_angle_temp, float& cur_vel_temp, float& cmd_dV);//return cost
         double vfh_angleSearch_nondeb(float& target_angle_temp, float& cur_vel_temp, float& cmd_dV ,std::vector<crossPoint>& min_cost_crsPts_temp );//return cost
         void setCmdVel();
         void setCmdAngle();
         geometry_msgs::Twist controler(float& tagVel, float& tagAng);
+        geometry_msgs::Twist move_mean(geometry_msgs::Twist cmd);
         //vfh+
         void create_histgram();
-		void create_binary_histgram(float& robotRadius, float& marginRadius);
+	void create_binary_histgram(float& robotRadius, float& marginRadius);
         void setHistgramParam();
         void setHistgramData();
         // データ送信
@@ -203,5 +224,10 @@ class obstacleAvoidance{
         void histgramChecker();
         void outputVFHChecker();
         void outputCrossPointVFHChecker();
+        void histgramCheckerEx();
+        void publish_deltaRobotOdom();
+        void rotationVelocityChecker(double omega);
+        void debug_trans_rotation_vel(double& v_rot_x, double& v_rot_y, const double& x_para_x,const double& x_para_y,const double& x_para_theta,const double& x_para_vx,const double& x_para_vy, const double& omega_base);
+        void display_rotVel();
 };
 #endif

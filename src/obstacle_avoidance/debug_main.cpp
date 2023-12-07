@@ -34,7 +34,7 @@ int main(int argc,char **argv){
 	{
 		ROS_INFO("Waiting switch msg");
 		pub_s.publish(empty_msg);
-		queue.callOne(ros::WallDuration(1));
+		queue.callOne(ros::WallDuration(0.1));
 	}
 	ROS_INFO("start");
     ros::spin();

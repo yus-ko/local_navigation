@@ -6,7 +6,7 @@
   <arg name="vfh_tdt/robotRadius" default="0.3125"/>
   <arg name="vfh_tdt/robotSteerRadius" default="0.3145"/>
   <arg name="vfh_tdt/controllerGainP" default="0.01"/>
-  <arg name="vfh_tdt/default_vel" default="0.2"/>
+  <arg name="vfh_tdt/default_vel" default="0.3"/>
   <!-- ゴール位置 -->
   <arg name="vfh_tdt/goalX" default="0.0"/>
   <arg name="vfh_tdt/goalY" default="6.0"/>
@@ -19,11 +19,11 @@
   <arg name="vfh_tdt/eta3" default="1"/>
   <arg name="vfh_tdt/angleMin" default="45"/>
   <arg name="vfh_tdt/angleMax" default="135"/>
-  <arg name="vfh_tdt/angleDiv" default="1"/>
+  <arg name="vfh_tdt/angleDiv" default="4"/>
   <arg name="vfh_tdt/distanceThreshold" default="1"/>
   <arg name="vfh_tdt/marginRadius" default="0.2"/>
   <arg name="vfh_tdt/node_depth" default="1"/>
-  <arg name="vfh_tdt/delta_step" default="1"/>
+  <arg name="vfh_tdt/delta_step" default="0.5"/>
   <!-- debug -->
   <arg name="vfh_tdt/loopFPS" default="1.0"/>
   <!-- <arg name="vfh_tdt/debugGoalPosX" default="2.0"/>

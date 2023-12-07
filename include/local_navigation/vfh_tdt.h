@@ -178,7 +178,45 @@ class vfh_tdt : public vfh
             //そのノードが最良ノードであるといえる
             // std::cout<<"openNode[0].depth:"<<openNode[0].depth<<std::endl;
             // std::cout<<"node_depth:"<<node_depth<<std::endl;
+            if((int)openNode.size()==0){
+                return true;
+            }
             return ( openNode[0].depth + 1 >= node_depth ? true : false);
+        }
+        int get_best_node(){
+            if((int)openNode.size()==0){
+                //クローズドノード内で最も深いノードを取得
+                //深さでソート
+                std::sort(closedNode.begin(),closedNode.end(), [](const cost_node& a, const cost_node& b) {
+                    return (a.depth > b.depth);
+                });//降順ソート
+                //ノード深く、コストが最も低いノードのベストノードとする
+                int count=0;
+                int best_node_num = closedNode[count].num;
+                double best_node_cost = closedNode[count].cost;
+                int max_depth = closedNode[count++].depth;
+                if(max_depth == 0){
+                    return(0);
+                }
+                else{
+                    int ref_depth = closedNode[count].depth;
+                    while(ros::ok()&&max_depth == ref_depth){
+                        //コスト比較
+                        int ref_node_cost = closedNode[count].cost;
+                        if(best_node_cost > ref_node_cost){
+                            best_node_num = closedNode[count].num;
+                            best_node_cost = closedNode[count].cost;
+                        }
+                        //次の参照値
+                        count++;
+                        ref_depth = closedNode[count].depth;
+                    }
+                }
+                return best_node_num;
+            }
+            else{
+                return(openNode[0].num);
+            }
         }
         cost_node& get_node(int Num){
             return openNode[Num];
@@ -324,6 +362,9 @@ class vfh_tdt : public vfh
             //先頭から挿入
             auto it = nextNodeIndex.begin();
             it = nextNodeIndex.insert(it, nodeNum);
+            if(preNodeNum == -1){
+                return nodeNum;
+            }
             //先頭からのインデックスを作成
             while (preNodeNum != 0)
             {
@@ -446,9 +487,12 @@ class vfh_tdt : public vfh
                     float point_dify = point_y - point_yr;
                     float angleTemp = atan2(point_dify, point_difx);
                     float disTemp = sqrt(pow(point_difx,2.0) + pow(point_dify,2.0));
-                    //距離に応じてブロック範囲を変更する
+                    //距離に応じてブロック範囲を変更する(ノード深さゼロを除く)
                     int blockNum;
-                    if(disTemp > dis_threshold ){
+                    if(disTemp > distance_threshold){
+                        continue;
+                    }
+                    if(disTemp > robotRadius+marginRadius || pNode.depth==0){
                         double blockAng = atan2((robotRadius+marginRadius), disTemp);
                         blockNum = (int)(blockAng/angle_div)+1;
                     }
@@ -462,7 +506,7 @@ class vfh_tdt : public vfh
                     }
                     int n = transform_angle_RobotToNum(angleTemp);
                     for(int i = n-blockNum/2; i <= n+blockNum/2; i++){
-                        if(i<0 || i>(int)hst_bi.size()){
+                        if(i<0 || i>=(int)hst_bi.size()){
                             continue;
                         }
                         hst_bi[i] = false;
@@ -600,21 +644,33 @@ class vfh_tdt : public vfh
             //ロボット位置
             float point_xr = pNode.dx;
             float point_yr = pNode.dy;
+            // std::cout<<"depth:"<<pNode.depth<<"--("<<point_xr<<","<<point_yr<<") ["<< ds/pNode.v*pNode.depth<<"]\n";
             //
             for(int k =0; k < debug_clstr.data.size(); k++){//クラスタ数
                 //各クラスタに含まれる点群を取得しヒストグラムを作成
+                // float gcX = debug_clstr.data[k].gc.x + debug_clstr.twist[k].linear.x * ds/pNode.v*pNode.depth;
+                // float gcY = debug_clstr.data[k].gc.y + debug_clstr.twist[k].linear.y * ds/pNode.v*pNode.depth;
+                // std::cout<<"(gc),(Xr)--(dx)"<<k<<":("<<gcX<<","<<gcY<<"),("<<point_xr<<","<<point_yr<<")--("<<gcX-point_xr<<","<<gcY-point_yr<<")\n";
+                // std::cout<<"dis,angle clstr "<<k<<":("<<sqrt(pow(gcX-point_xr,2.0) + pow(gcY-point_yr,2.0))<<","<<atan2(gcY-point_yr,gcX-point_xr)<<")\n";
                 for(int m = 0; m < debug_clstr.data[k].pt.size(); m++){
                     //障害物
-                    // std::cout<< debug_clstr.data[k].pt[m].x<<","<< debug_clstr.data[k].pt[m].y<<std::endl;
+                    // std::cout<< debug_clstr.data[k].pt[m].x<<","<< debug_clstr.data[k].pt[m].y<<" -- "<<ds/pNode.v*pNode.depth<<std::endl;
                     float point_x = debug_clstr.data[k].pt[m].x + debug_clstr.twist[k].linear.x * ds/pNode.v*pNode.depth;
                     float point_y = debug_clstr.data[k].pt[m].y + debug_clstr.twist[k].linear.y * ds/pNode.v*pNode.depth;
+                    // float point_x = debug_clstr.data[k].pt[m].x + debug_clstr.twist[k].linear.y * ds/pNode.v*pNode.depth;
+                    // float point_y = debug_clstr.data[k].pt[m].y + (-debug_clstr.twist[k].linear.x) * ds/pNode.v*pNode.depth;
                     float point_difx = point_x - point_xr;
                     float point_dify = point_y - point_yr;
-                    float angleTemp = atan2(point_dify, point_difx);
+                    float angleTemp = atan2(point_dify, point_difx) + (pNode.target_angle-startNode.target_angle);
                     float disTemp = sqrt(pow(point_difx,2.0) + pow(point_dify,2.0));
                     //距離に応じてブロック範囲を変更する
                     int blockNum;
                     if(disTemp > dis_threshold ){
+                        // double blockAng = atan2((robotRadius+marginRadius), disTemp);
+                        // blockNum = (int)(blockAng/angle_div)+1;
+                        continue;
+                    }
+                    else if(disTemp > robotRadius+marginRadius ){
                         double blockAng = atan2((robotRadius+marginRadius), disTemp);
                         blockNum = (int)(blockAng/angle_div)+1;
                     }
@@ -628,7 +684,7 @@ class vfh_tdt : public vfh
                     }
                     int n = transform_angle_RobotToNum(angleTemp);
                     for(int i = n-blockNum/2; i <= n+blockNum/2; i++){
-                        if(i<0 || i>(int)hst_bi.size()){
+                        if(i<0 || i>=(int)hst_bi.size()){
                             continue;
                         }
                         hst_bi[i] = false;

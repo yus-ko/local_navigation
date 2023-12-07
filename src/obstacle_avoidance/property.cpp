@@ -11,6 +11,7 @@ void obstacleAvoidance::setLaunchParam(){
     n.getParam("obstacleAvoidance/angleMax", angle_max);
     n.getParam("obstacleAvoidance/angleDiv", angle_div);
     n.getParam("obstacleAvoidance/maxSpeed", max_speed);
+    n.getParam("obstacleAvoidance/minSpeed", min_speed);
     n.getParam("obstacleAvoidance/defaultSpeed", default_speed);
     //ゴール位置
     n.getParam("obstacleAvoidance/goalX", goal_x);
@@ -20,7 +21,8 @@ void obstacleAvoidance::setLaunchParam(){
     goalOdom.pose.pose.position.z = 0;
     RECEIVED_GOAL_ODOM = true;//検討中
     //vfh
-    //--k
+    n.getParam("obstacleAvoidance/distance_th", dis_th);
+	//--k
     n.getParam("obstacleAvoidance/marginRadius", marginRadius);
 	n.getParam("obstacleAvoidance/Kcp",k_cp);
     n.getParam("obstacleAvoidance/Kg",k_g);
@@ -38,6 +40,11 @@ void obstacleAvoidance::setLaunchParam(){
     n.getParam("obstacleAvoidance/searchDiv_vel",dV_div);
     //デバッグ
     n.getParam("obstacleAvoidance/debugType",debugType);
+
+    n.getParam("obstacleAvoidance/CONTROLLER/GAIN/P",CONTROLLER_GAIN_P);
+    n.getParam("obstacleAvoidance/POTENTIAL/F1",POTENTIAL_F1);
+    n.getParam("obstacleAvoidance/POTENTIAL/F1",POTENTIAL_F2);
+    n.getParam("obstacleAvoidance/MOVE_MEAN/WINDOW_NUM",MOVE_MEAN_WINDOW_NUM);
 }
 void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig &config, uint32_t level) {
 	// ROS_INFO("Reconfigure Request: %d %f %f %d", 
@@ -61,6 +68,9 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     eta_vel = config.EtaVel;
     //
     safe_range = config.safeRange;
+    crossWeightX = config.crossWeightX;
+    crossWeightY = config.crossWeightY;
+    timeBias = config.timeBias;
 	//デバッグ
     debugType = config.debugType;
     //クロスポイントチェッカー
@@ -84,10 +94,9 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     debugObstacleRadius = config.debugObstacleRadius;//障害物半径
     debugRobotRadius = config.debugRobotRadius;//ロボット半径
     //checkCrossPoint
-    if(debugFlag_crossPointChecker){
-        crossPointChecker();
-    }
-
+    //if(debugFlag_crossPointChecker){
+    //    crossPointChecker();
+    //}//20220916
     //ヒストグラムチェッカー
     debugHistgramCheckerFlag = config.debugHistgramCheckerFlag;
     debugObstacleNum = config.debugObstacleNum;
@@ -108,9 +117,9 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     debugEtaCurAngle = config.debugEtaCurAngle;
     debugEtaPrevAngle = config.debugEtaPrevAngle;
     debugMarginRadius = config.debugMarginRadius;
-    if(debugHistgramCheckerFlag){
-        histgramChecker();
-    }
+    //if(debugHistgramCheckerFlag){
+    //    histgramChecker();
+    //}//20220916
     //出力チェッカー
     debugOutputVFHCheckerFlag = config.debugOutputVFHCheckerFlag;
     debugEtaG = config.debugEtaG;
@@ -124,9 +133,11 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     debugGoalPosY = config.debugGoalPosY;
     debugCurAng = config.debugCurAng;
     debugPrevTagAng = config.debugPrevTagAng;
-    if(debugOutputVFHCheckerFlag){
-       outputVFHChecker();
-    }
+    // 
+    debugRotOmega =config.debugRotOmega;
+    //if(debugOutputVFHCheckerFlag){
+    //   outputVFHChecker();
+    //}//20220916
     //
     debugOutputCPVFHCheckerFlag = config.debugOutputCPVFHCheckerFlag;
     debugKcp = config.debugKcp;
@@ -170,11 +181,14 @@ void obstacleAvoidance::configCallback(local_navigation::obstacleAvoidanceConfig
     //障害物サイズ閾値
     debugObstacleSizeThreshold = config.debugObstacleSizeThreshold;
     //
-    if(debugOutputCPVFHCheckerFlag){
-       outputCrossPointVFHChecker();
-    }
+    //if(debugOutputCPVFHCheckerFlag){
+    //   outputCrossPointVFHChecker();
+    //}//20220916
     //交差位置の表示有無
     display_output = config.displayOutput;
+    //
+    debugRotationVelocityCheckerFlag = config.debugRotationVelocityCheckerFlag;
+    
 }
 
 void obstacleAvoidance::setDefaultCrossPointChecker(){
